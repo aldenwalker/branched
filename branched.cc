@@ -100,9 +100,9 @@ Triangulation Triangulation::branched_surface_from_vector(std::vector<int>& weig
   int num_edges_used = 0;
   int num_vertices_used = 0;
   std::vector<bool> is_edge_used(edges.size(), false);
-  for (int i=0; i<(int)weights.size(); ++i) {
+  for (int i=1; i<(int)weights.size(); ++i) {
     if (weights[i] == 0) continue;
-    for (int j=0; j<triangles[i].dim; ++j) {
+    for (int j=0; j<3; ++j) {
       is_edge_used[ abs(triangles[i][j]) ] = true;
     }
   }
@@ -137,8 +137,8 @@ Triangulation Triangulation::branched_surface_from_vector(std::vector<int>& weig
   
   //Create the new lists of vertices and edges
   //record which edges are incident to which vertices
-  new_T.vertices.resize(num_vertices_used+1, Simplex(0));
-  new_T.edges.resize(num_edges_used+1, Simplex(1));
+  new_T.vertices.resize(num_vertices_used+1);
+  new_T.edges.resize(num_edges_used+1);
   for (int i=1; i<(int)edges.size(); ++i) {
     int ei = edge_index_translation_table[i];
     if (ei == 0) continue;
@@ -153,15 +153,20 @@ Triangulation Triangulation::branched_surface_from_vector(std::vector<int>& weig
   //Create the new list of triangles
   new_T.triangles.resize(1);
   for (int i=0; i<(int)weights.size(); ++i) {
-    Simplex temp_simp(2);
-    int ei[3];
+    Triangle temp_tri;
     for (int j=0; j<3; ++j) {
-      ei[j] = sgn(triangles[i][j])*edge_index_translation_table[ abs(triangles[i][j]) ];
-      temp_simp[j] = ei[j];
+      //copy the edges, except translate to the new edge indices
+      temp_tri[j] = sgn(triangles[i][j])*edge_index_translation_table[ abs(triangles[i][j]) ];
     }
     for (int j=0; j<weights[i]; ++j) {
-      int this_t_ind = new_T.triangles.size();
-      new_T.edges[ 
+      int this_tri_ind = new_T.triangles.size();
+      for (int k=0; k<3; ++k) {
+        //record in the edge that this new triangle has it as boundary
+        new_T.edges.in_bd_of[ abs(temp_tri[k]) ].push_back( sgn(temp_tri[k])*this_tri_ind );
+      }
+      new_T.triangles.push_back(temp_tri);
+    }
+  }
       
   
   
