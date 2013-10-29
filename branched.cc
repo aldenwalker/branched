@@ -5,6 +5,26 @@
 
 #include "branched.h"
 
+//this is a handy function to get the generator index from the tile position
+SignedInd free_gen_from_tile_index(int ind) {
+  int q = ind/4;
+  int r4 = ind%4;
+  int r2 = ind%2;
+  int gen_index = (2*q) + r2;
+  int gen_index_1_based = gen_index + 1;
+  int sign = (r4 < 2 ? 1 : -1);
+  return sign * gen_index_1_based;
+}
+
+//mod, but always return a nonnegative number
+int pos_mod(int a, int b) {
+  if (a < 0) {
+    a += ((a/b)+1)*b;
+  }
+  return a%b;
+}
+
+
 /*****************************************************************************
  * Vertex
  *****************************************************************************/
@@ -16,7 +36,7 @@ std::ostream& operator<<(std::ostream& os, Vertex& v) {
   os << "V(); {";
   for (int i=0; i<(int)v.in_bd_of.size(); ++i) {
     os << v.in_bd_of[i];
-    if (i<v.in_bd_of.size()-1) os << ", ";
+    if (i<(int)v.in_bd_of.size()-1) os << ", ";
   }
   os << "}";
   return os;
@@ -39,12 +59,12 @@ std::ostream& operator<<(std::ostream& os, Edge& e) {
   os << "E(" << e.bd[0] << "," << e.bd[1] << "); {{";
   for (int i=0; i<(int)e.in_bd_pos.size(); ++i) {
     os << e.in_bd_pos[i];
-    if (i<e.in_bd_pos.size()-1) os << ", ";
+    if (i<(int)e.in_bd_pos.size()-1) os << ", ";
   }
   os << "},{";
   for (int i=0; i<(int)e.in_bd_neg.size(); ++i) {
     os << e.in_bd_neg[i];
-    if (i<e.in_bd_neg.size()-1) os << ", ";
+    if (i<(int)e.in_bd_neg.size()-1) os << ", ";
   }
   os << "}}";
   return os;
@@ -105,6 +125,10 @@ void Triangulation::read_file(std::string filename) {}
 
 void Triangulation::write_file(std::string filename) {}
 
+
+/*****************************************************************************
+ * set the triangulation to be a closed surface of genus g
+ * ***************************************************************************/
 void Triangulation::set_closed_surface(int genus) {
   //zigzag triangulation
   //the middle edges zigzag up face, starting at vertex 0->2, then 2->(2-3), then (2-3)->(2-3)+4...
@@ -136,30 +160,45 @@ void Triangulation::set_closed_surface(int genus) {
   int tile_step = 2;
   while (true) {
     //update the vertices
-    previous_tile_vertex = current_tile_vertex
+    previous_tile_vertex = current_tile_vertex;
     current_tile_vertex = next_tile_vertex;
     
     //compute the next tile vertex
     ++tile_step;
+    if (tile_step == 4*genus-1) break;
     next_tile_vertex = current_tile_vertex + ((tile_step%2)==0 ? tile_step : -tile_step);
+    next_tile_vertex = pos_mod(next_tile_vertex, 4*genus);
     
     //update the edges;
     prev_added_edge = just_added_edge;
     just_added_edge = add_edge(1,1);
     if ((tile_step%2)==0) { 
       //we're moving right, so the counterclockwise tile vertex before the outside edge is previous_tile_vertex
+      outside_edge = free_gen_from_tile_index(previous_tile_vertex);
+      //add the triangle
+      (void)add_triangle( outside_edge, -just_added_edge, -prev_added_edge );
       
     } else {
       //we're moving left, so the counterclockwise tile vertex before the outside edge is next_tile_vertex
-    outside_edge = 
-    
+      outside_edge = free_gen_from_tile_index(next_tile_vertex);
+      //add the triangle
+      (void)add_triangle( prev_added_edge, just_added_edge, outside_edge );
+    }
   }
-  
-    
-    
-    
+  //add the last triangle
+  prev_added_edge = just_added_edge;
+  previous_tile_vertex = current_tile_vertex;
+  current_tile_vertex = next_tile_vertex;
+  next_tile_vertex = current_tile_vertex + 1;
+  int outside_edge_1 = free_gen_from_tile_index(current_tile_vertex);
+  int outside_edge_2 = free_gen_from_tile_index(next_tile_vertex);
+  (void)add_triangle( prev_added_edge, outside_edge_1, outside_edge_2 );
 }
 
+
+/*****************************************************************************
+ * Print a triangulation
+ * ***************************************************************************/
 void Triangulation::print(std::ostream& os) {
   os << "Vertices (" << vertices.size()-1 << "):\n";
   for (int i=1; i<(int)vertices.size(); ++i) {
@@ -182,6 +221,37 @@ void Triangulation::print(std::ostream& os) {
     os << "\n";
   }
 }
+
+/*****************************************************************************
+ * compute Euler characteristic.  This requires that every edge have at most 
+ * one positive incident triangle and at most one negative incident triangle.
+ * If resolve_vertices=false, it will assume that there are no branch points
+ * and just compute v-e+f.  If resolve_vertices=true, it'll figure out how many 
+ * sheets of the surface touch together at the vertex, and it'll use the sum of 
+ * these counts instead of v
+ * ***************************************************************************/
+int Triangulation::chi(bool resolve_vertices) {
+  if (!resolve_vertices) {
+    return (vertices.size()-1) - (edges.size()-1) + (triangles.size()-1);
+  }
+  int real_v=0;
+  for (int i=1; i<(int)vertices.size(); ++i) {
+    int num_ie = vertices[i].in_bd_of.size();
+    std::vector<bool> have_done_incident_edge(num_ie, false);
+    //find an undone edge
+    //int first_ei = -1;
+    for (int j=0; j<num_ie; ++j) {
+      if (have_done_incident_edge[j]==false) {
+        
+      //NOT DONE
+      }
+    }
+  }
+  return real_v - (edges.size()-1) + (triangles.size()-1);
+}
+
+
+
 
 // Given a integral weight vector on the triangles, produce a 
 // branched surface triangulation containing appropriate duplicates 
@@ -266,7 +336,8 @@ Triangulation Triangulation::branched_surface_from_vector(std::vector<int>& weig
       new_T.triangles.push_back(temp_tri);
     }
   }
-      
+  
+  return new_T;
 }
 
 
@@ -276,7 +347,10 @@ Triangulation Triangulation::resolve_branched_surface() {
 }
 
 int main(int argc, char* argv[]) {
-  return 1;
+  Triangulation T;
+  T.set_closed_surface(2);
+  T.print(std::cout);
+  return 0;
 }
 
 

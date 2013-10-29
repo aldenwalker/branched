@@ -54,6 +54,7 @@ struct Triangulation {
     void read_file(std::string filename);
     void write_file(std::string filename);
     void print(std::ostream& os);
+    int chi(bool resolve_vertices=true);
   
     Triangulation branched_surface_from_vector(std::vector<int>& weights);
     Triangulation resolve_branched_surface();
