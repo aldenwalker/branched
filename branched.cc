@@ -1,11 +1,13 @@
 #include <vector>
 #include <iostream>
 #include <string>
-#include <stringstream>
 #include <cstdlib>
 
 #include "branched.h"
 
+/*****************************************************************************
+ * Vertex
+ *****************************************************************************/
 Vertex::Vertex() {
   in_bd_of.resize(0);
 }
@@ -20,9 +22,13 @@ std::ostream& operator<<(std::ostream& os, Vertex& v) {
   return os;
 }
 
+/*****************************************************************************
+ * Edge
+ *****************************************************************************/
 Edge::Edge() {
   bd.resize(2,0);
-  in_bd_of.resize(0);
+  in_bd_pos.resize(0);
+  in_bd_neg.resize(0);
 }
 
 SignedInd& Edge::operator[](int i) {
@@ -30,18 +36,25 @@ SignedInd& Edge::operator[](int i) {
 }
 
 std::ostream& operator<<(std::ostream& os, Edge& e) {
-  os << "E(" << e.bd[0] << "," << e.bd[1] << "); {"
-  for (int i=0; i<(int)e.in_bd_of.size(); ++i) {
-    os << e.in_bd_of[i];
-    if (i<e.in_bd_of.size()-1) os << ", ";
+  os << "E(" << e.bd[0] << "," << e.bd[1] << "); {{";
+  for (int i=0; i<(int)e.in_bd_pos.size(); ++i) {
+    os << e.in_bd_pos[i];
+    if (i<e.in_bd_pos.size()-1) os << ", ";
   }
-  os << "}";
+  os << "},{";
+  for (int i=0; i<(int)e.in_bd_neg.size(); ++i) {
+    os << e.in_bd_neg[i];
+    if (i<e.in_bd_neg.size()-1) os << ", ";
+  }
+  os << "}}";
   return os;
 }
 
+/*****************************************************************************
+ * Triangle
+ *****************************************************************************/
 Triangle::Triangle() {
   bd.resize(3,0);
-  in_bd_of.resize(0);
 }
 
 SignedInd& Triangle::operator[](int i) {
@@ -49,12 +62,7 @@ SignedInd& Triangle::operator[](int i) {
 }
 
 std::ostream& operator<<(std::ostream& os, Triangle& t) {
-  os << "T(" << t.bd[0] << "," << t.bd[1] << "," << t.bd[2] << "); {"
-  for (int i=0; i<(int)t.in_bd_of.size(); ++i) {
-    os << t.in_bd_of[i];
-    if (i<t.in_bd_of.size()-1) os << ", ";
-  }
-  os << "}";
+  os << "T(" << t.bd[0] << "," << t.bd[1] << "," << t.bd[2] << ");";
   return os;
 }
 
@@ -66,27 +74,39 @@ Triangulation::Triangulation() {
   triangles.resize(0);
   edges.resize(0);
   vertices.resize(0);
+  fundamental_loops.resize(0);
 }
 
 void Triangulation::read_file(std::string filename) {}
 
 void Triangulation::write_file(std::string filename) {}
 
-void Triangulation::print(ostream& os) {
+void Triangulation::set_closed_surface(int genus) {
+  
+}
+
+void Triangulation::print(std::ostream& os) {
   os << "Vertices (" << vertices.size()-1 << "):\n";
   for (int i=1; i<(int)vertices.size(); ++i) {
     os << i << ": " << vertices[i] << "\n";
   }
-  os << "Edges (" << edges.size()-1 << ")\n";
+  os << "Edges (" << edges.size()-1 << "):\n";
   for (int i=1; i<(int)edges.size(); ++i) {
     os << i << ": " << edges[i] << "\n";
   }
-  os << "Triangles (" << triangles.size()-1 << ")\n";
+  os << "Triangles (" << triangles.size()-1 << "):\n";
   for (int i=1; i<(int)triangles.size(); ++i) {
     os << i << ": " << triangles[i] << "\n";
   }
+  os << "Fundamental loops:\n";
+  for (int i=0; i<(int)fundamental_loops.size(); ++i) {
+    os << i << ": ";
+    for (int j=0; j<(int)fundamental_loops[i].size(); ++j) {
+      os << fundamental_loops[i][j] << " ";
+    }
+    os << "\n";
+  }
 }
-
 
 // Given a integral weight vector on the triangles, produce a 
 // branched surface triangulation containing appropriate duplicates 
@@ -162,22 +182,22 @@ Triangulation Triangulation::branched_surface_from_vector(std::vector<int>& weig
       int this_tri_ind = new_T.triangles.size();
       for (int k=0; k<3; ++k) {
         //record in the edge that this new triangle has it as boundary
-        new_T.edges.in_bd_of[ abs(temp_tri[k]) ].push_back( sgn(temp_tri[k])*this_tri_ind );
+        if (sgn(temp_tri[k]) > 0) {
+          new_T.edges[abs(temp_tri[k])].in_bd_pos.push_back( this_tri_ind );
+        } else {
+          new_T.edges[abs(temp_tri[k])].in_bd_neg.push_back( this_tri_ind );
+        }
       }
       new_T.triangles.push_back(temp_tri);
     }
   }
       
-  
-  
-  
-  
-  
-  
 }
+
+
 
 Triangulation Triangulation::resolve_branched_surface() {
-
+  return Triangulation();
 }
     
     
@@ -192,7 +212,9 @@ Triangulation Triangulation::resolve_branched_surface() {
     
     
     
-    
+int main(int argc, char* argv[]) {
+  return 1;
+}
     
     
     
