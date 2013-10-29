@@ -48,6 +48,8 @@ struct Triangulation {
     std::vector<std::vector<SignedInd> > fundamental_loops;
 
     Triangulation();
+    int add_edge(int v0, int v1);
+    int add_triangle(SignedInd e0, SignedInd e1, SignedInd e2);
     void set_closed_surface(int genus);
     void read_file(std::string filename);
     void write_file(std::string filename);

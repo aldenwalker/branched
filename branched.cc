@@ -77,12 +77,87 @@ Triangulation::Triangulation() {
   fundamental_loops.resize(0);
 }
 
+int Triangulation::add_edge(int v0, int v1) {
+  Edge temp_edge;
+  temp_edge[0] = v0;
+  temp_edge[1] = v1;
+  int ei = edges.size();
+  edges.push_back(temp_edge);
+  vertices[v0].in_bd_of.push_back(ei);
+  vertices[v1].in_bd_of.push_back(-ei);
+  return ei;
+}
+  
+//the edges read around counterclockwise
+int Triangulation::add_triangle(SignedInd e0, SignedInd e1, SignedInd e2) {
+  Triangle temp_tri;
+  temp_tri[0] = e0; temp_tri[1] = e1; temp_tri[2] = e2;
+  int ti = triangles.size();
+  triangles.push_back(temp_tri);
+  if (e0>0) edges[e0].in_bd_pos.push_back(ti); else edges[-e0].in_bd_neg.push_back(ti);
+  if (e1>0) edges[e1].in_bd_pos.push_back(ti); else edges[-e1].in_bd_neg.push_back(ti);
+  if (e2>0) edges[e2].in_bd_pos.push_back(ti); else edges[-e2].in_bd_neg.push_back(ti);
+  return ti;
+}  
+  
+
 void Triangulation::read_file(std::string filename) {}
 
 void Triangulation::write_file(std::string filename) {}
 
 void Triangulation::set_closed_surface(int genus) {
+  //zigzag triangulation
+  //the middle edges zigzag up face, starting at vertex 0->2, then 2->(2-3), then (2-3)->(2-3)+4...
+  //it's the quotient of this, of course
   
+  //add a single vertex and clear the other lists
+  vertices = std::vector<Vertex>(2);
+  edges.resize(1);
+  triangles.resize(1);
+  fundamental_loops.resize(0); //these will list a_1, b_1, a_2, b_2, ..., where \prod_i [a_i,b_i] = 1
+  //add all the generator edges, which will be edges 1 through 2g
+  for (int i=0; i<genus; ++i) {
+    for (int j=0; j<2; ++j) {
+      int ei = add_edge(1,1);
+      fundamental_loops.push_back( std::vector<int>(1,ei) );
+    }
+  }
+  //now add the edges that go up the middle, and add the triangles
+  //make the first, special case triangle
+  int just_added_edge = add_edge(1,1);
+  (void)add_triangle(1,2,-just_added_edge); //this is the first triangle
+  
+  //set up the iterative step
+  int previous_tile_vertex = 1;
+  int current_tile_vertex = 0;
+  int next_tile_vertex=2;
+  int prev_added_edge=-1;
+  int outside_edge=-1;
+  int tile_step = 2;
+  while (true) {
+    //update the vertices
+    previous_tile_vertex = current_tile_vertex
+    current_tile_vertex = next_tile_vertex;
+    
+    //compute the next tile vertex
+    ++tile_step;
+    next_tile_vertex = current_tile_vertex + ((tile_step%2)==0 ? tile_step : -tile_step);
+    
+    //update the edges;
+    prev_added_edge = just_added_edge;
+    just_added_edge = add_edge(1,1);
+    if ((tile_step%2)==0) { 
+      //we're moving right, so the counterclockwise tile vertex before the outside edge is previous_tile_vertex
+      
+    } else {
+      //we're moving left, so the counterclockwise tile vertex before the outside edge is next_tile_vertex
+    outside_edge = 
+    
+  }
+  
+    
+    
+    
 }
 
 void Triangulation::print(std::ostream& os) {
@@ -199,29 +274,12 @@ Triangulation Triangulation::branched_surface_from_vector(std::vector<int>& weig
 Triangulation Triangulation::resolve_branched_surface() {
   return Triangulation();
 }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
 int main(int argc, char* argv[]) {
   return 1;
 }
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
 
 
