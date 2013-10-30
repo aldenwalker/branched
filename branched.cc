@@ -358,8 +358,24 @@ int main(int argc, char* argv[]) {
   //T.print(std::cout);
   Surface S(2,0);
   S.print(std::cout);
+  std::string w("aabABbBcdCDA");
+  std::string wg = S.geodesic(w);
+  std::cout << "Word: " << w << " geodesic: " << wg << "\n";
+  w = std::string("abABcababab");
+  wg = S.geodesic(w);
+  std::cout << "Word: " << w << " geodesic: " << wg << "\n";
+  w = std::string("dababbaBA");
+  wg = S.geodesic(w);
+  std::cout << "Word: " << w << " geodesic: " << wg << "\n";
+  
   Surface S2(3,2);
   S2.print(std::cout);
+  w = std::string("abABcdCD");
+  wg = S2.geodesic(w);
+  std::cout << "Word: " << w << " geodesic: " << wg << "\n";
+  w = std::string("ddcDCbaBA");
+  wg = S2.geodesic(w);
+  std::cout << "Word: " << w << " geodesic: " << wg << "\n";
   
   return 0;
 }
