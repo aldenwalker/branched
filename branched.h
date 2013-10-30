@@ -8,9 +8,7 @@
 
 typedef int SignedInd;
 
-int sgn(int x) { 
-  return ((x > 0) - (x < 0));
-}
+int sgn(int x);
 
 // we could use a standard simplex type, but the boundaries 
 // are confusing, so we'll use different types

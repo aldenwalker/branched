@@ -4,6 +4,12 @@
 #include <cstdlib>
 
 #include "branched.h"
+#include "surface.h"
+
+//return +/-1 depending on the sign
+int sgn(int x) { 
+  return ((x > 0) - (x < 0));
+}
 
 //this is a handy function to get the generator index from the tile position
 SignedInd free_gen_from_tile_index(int ind) {
@@ -347,9 +353,14 @@ Triangulation Triangulation::resolve_branched_surface() {
 }
 
 int main(int argc, char* argv[]) {
-  Triangulation T;
-  T.set_closed_surface(2);
-  T.print(std::cout);
+  //Triangulation T;
+  //T.set_closed_surface(2);
+  //T.print(std::cout);
+  Surface S(2,0);
+  S.print(std::cout);
+  Surface S2(3,2);
+  S2.print(std::cout);
+  
   return 0;
 }
 

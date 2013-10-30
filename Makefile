@@ -8,8 +8,11 @@ all: branched
 branched.o : branched.cc
 	$(CC) $(CFLAGS) $(IFLAGS) -c branched.cc
 
-branched : branched.o
-	$(CC) -o branched branched.o $(LFLAGS)
+surface.o : surface.cc
+	$(CC) $(CFLAGS) $(IFLAGS) -c surface.cc
+
+branched : branched.o surface.o
+	$(CC) -o branched branched.o surface.o $(LFLAGS)
 
 clean : 
 	rm *.o

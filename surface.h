@@ -6,6 +6,8 @@
 #include <iostream>
 #include <map>
 
+#include "branched.h"
+
 struct Surface {
   int genus;
   int nboundaries;
@@ -13,6 +15,8 @@ struct Surface {
   std::string cyclic_order;
   std::map<int, int> cyclic_order_map;
   std::string relator;
+  std::map<int, int> relator_map;
+  std::map<int, int> relator_inverse_map;
   
   //use the default string aBAbcDCd...fFgGhH...
   //The weird order is so that the relator is [a,b][c,d]...fgh...
