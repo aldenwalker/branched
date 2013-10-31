@@ -465,9 +465,34 @@ LoopArrangement Surface::minimal_intersection_position(std::vector<std::string>&
 
 void Surface::draw_loop_arrangement(LoopArrangement& LA) {
   XGraphics X;
+  
+  //figure out where the edges are for the 
+  //generators and inverses
+  std::map<int, Point2d> gen_edge_start;
+  std::map<int, Point2d> gen_edge_end;
+  std::map<int, Point2d> gen_edge_step;
+  //start at (1,0)
+  Point2d current_point(1,0);
+  
+  
+  
+  
+  
+  
   std::string key_press;
   X.flush();
   key_press = X.wait_for_key();
 }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
