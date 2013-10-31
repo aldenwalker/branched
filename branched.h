@@ -9,6 +9,7 @@
 typedef int SignedInd;
 
 int sgn(int x);
+int pos_mod(int a, int b);
 
 // we could use a standard simplex type, but the boundaries 
 // are confusing, so we'll use different types

@@ -12,10 +12,10 @@ struct Surface {
   int genus;
   int nboundaries;
   int ngens;
-  std::string cyclic_order;
+  std::vector<int> cyclic_order;
   std::map<int, int> cyclic_order_map;
-  std::string relator;
-  std::string relator_inverse;
+  std::vector<int> relator;
+  std::vector<int> relator_inverse;
   std::map<int, int> relator_map;
   std::map<int, int> relator_inverse_map;
   
@@ -30,20 +30,29 @@ struct Surface {
   //(replace xyz with xy'z where y(y'^-1) = relator, and y has length len
   //if inverse==true, it'll use the relator inverse instead
   //this ASSUMES that the subword at pos of length len is a subword of relator/inverse !!!
-  void apply_relator(std::string& w, int pos, int len, bool inv=false);
+  void apply_relator(std::vector<int>& w, int pos, int len, bool inv=false);
+  
+  //reduce a word into a combinatorial geodesic (a string)
+  std::string geodesic(std::string& w);
   
   //reduce a word into a combinatorial geodesic
-  //obviously, this is NOT unique if it's a closed surface
-  std::string geodesic(std::string w);
+  //this is NOT unique obviously
+  std::vector<int> geodesic(std::vector<int>& w);
   
   //returns +/-1 depending on whether the gen list x,y,z is positively cyclically ordered
-  int cyclic_order(SignedInd x, SignedInd y, SignedInd z);
+  int cyclically_ordered(SignedInd x, SignedInd y, SignedInd z);
+  
+  //returns +/-1 depending on how the words diverge
+  //the starting letters must be the same!
+  //+1 if the cyclic order is (start, w1, w2)
+  int cyclically_ordered(std::vector<int>& w1, int start1, int dir1,
+                         std::vector<int>& w2, int start2, int dir2);
   
   //finds the locations along the boundary edges associated to every letter 
   //in the input words such that the intersection number is minimized
   //this makes sure the input is combinatorially geodesic
   //this may change the input loops! (to something the same in the group)
-  void minimal_intersection_position(std::vector<std::string>& W, 
+  void minimal_intersection_position(std::vector<std::string>& W_words, 
                                      std::vector<std::vector<int> >& positions,
                                      std::vector<int>& gen_counts);
   
@@ -56,11 +65,9 @@ struct Surface {
 
 //this helps with arranging the geodesics
 struct GenPosition {
-  int w;    //word index
-  int i;    //letter index
-  int sign; //+1 means positive (lower case)
-  std::string* word; //pointer to the actual word
-  Surface* S; //the surface we're working in
+  std::vector<int>* word; //pointer to the actual word
+  int i;                  //letter index
+  Surface* S;             //the surface we're working in
 };
 
 
