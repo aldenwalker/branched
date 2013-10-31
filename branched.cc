@@ -366,7 +366,7 @@ int main(int argc, char* argv[]) {
   std::cout << "Word: " << w << " geodesic: " << wg << "\n";
   w = std::string("dababbaBA");
   wg = S.geodesic(w);
-  std::cout << "Word: " << w << " geodesic: " << wg << "\n";
+  std::cout << "Word: " << w << " geodesic: " << wg << "\n\n";
   
   Surface S2(3,2);
   S2.print(std::cout);
@@ -375,8 +375,14 @@ int main(int argc, char* argv[]) {
   std::cout << "Word: " << w << " geodesic: " << wg << "\n";
   w = std::string("ddcDCbaBA");
   wg = S2.geodesic(w);
-  std::cout << "Word: " << w << " geodesic: " << wg << "\n";
+  std::cout << "Word: " << w << " geodesic: " << wg << "\n\n";
   
+  Surface S3(3,0);
+  std::vector<std::string> W_words(2);
+  W_words[0] = std::string("abABc");
+  W_words[1] = std::string("ababaccdcdeaea");
+  LoopArrangement LA = S3.minimal_intersection_position(W_words);
+  S3.draw_loop_arrangement(LA);
   return 0;
 }
 

@@ -8,6 +8,8 @@
 
 #include "branched.h"
 
+struct LoopArrangement;
+
 struct Surface {
   int genus;
   int nboundaries;
@@ -52,9 +54,10 @@ struct Surface {
   //in the input words such that the intersection number is minimized
   //this makes sure the input is combinatorially geodesic
   //this may change the input loops! (to something the same in the group)
-  void minimal_intersection_position(std::vector<std::string>& W_words, 
-                                     std::vector<std::vector<int> >& positions,
-                                     std::vector<int>& gen_counts);
+  LoopArrangement minimal_intersection_position(std::vector<std::string>& W_words);
+  
+  //this draws a loop arrangement of the surface
+  void draw_loop_arrangement(LoopArrangement& LA);
   
   //produces a branched surface (cellulation) corresponding to 
   //the complementary regions of the loops
@@ -66,9 +69,18 @@ struct Surface {
 //this helps with arranging the geodesics
 struct GenPosition {
   std::vector<int>* word; //pointer to the actual word
+  int w;                  //word index
   int i;                  //letter index
   Surface* S;             //the surface we're working in
 };
 
+//this allows us to package a loop arrangement
+struct LoopArrangement {
+  Surface* S;
+  std::vector<std::string> W_words;
+  std::vector<std::vector<int> > W;
+  std::vector<std::vector<int> > positions;
+  std::vector<int> gen_counts;
+};
 
 #endif

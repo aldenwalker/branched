@@ -2,7 +2,7 @@
 #include <algorithm>
 
 #include "surface.h"
-
+#include "graphics.h"
 
 std::ostream& operator<<(std::ostream& os, std::vector<int>& L) {
   if (L.size() == 0) return os;
@@ -405,25 +405,21 @@ bool sort_at_gen_positions(GenPosition& gp1, GenPosition& gp2) {
   }
 }
 
-void Surface::minimal_intersection_position(std::vector<std::string>& W_words, 
-                                            std::vector<std::vector<int> >& positions,
-                                            std::vector<int>& gen_counts) {
+LoopArrangement Surface::minimal_intersection_position(std::vector<std::string>& W_words) {
+  
+  LoopArrangement LA;
+  LA.W_words = W_words;
+
   //turn the words into gen lists
-  std::vector<std::vector<int> > W(W_words.size());
-  for (int i=0; i<(int)W.size(); ++i) {
-    W[i] = vector_from_word(W_words[i]);
+  LA.W = std::vector<std::vector<int> >(W_words.size());
+  for (int i=0; i<(int)W_words.size(); ++i) {
+    LA.W[i] = vector_from_word(W_words[i]);
   }
   
   //reduce the words to geodesics
-  int nwords = W.size();
+  int nwords = LA.W.size();
   for (int i=0; i<nwords; ++i) {
-    W[i] = geodesic(W[i]);
-  }
-  
-  //make the positions the right size
-  positions.resize(nwords);
-  for (int i=0; i<nwords; ++i) {
-    positions[i].resize(W[i].size(), -1);
+    LA.W[i] = geodesic(LA.W[i]);
   }
   
   //count the gens and find where they are
@@ -431,13 +427,29 @@ void Surface::minimal_intersection_position(std::vector<std::string>& W_words,
   GenPosition temp_gen_pos;
   temp_gen_pos.S = this;
   for (int i=0; i<nwords; ++i) {
-    temp_gen_pos.word = &W[i];
-    for (int j=0; j<(int)W[i].size(); ++j) {
-      int gen = letter_to_alpha_ind(W[i][j]);
+    temp_gen_pos.word = &(LA.W[i]);
+    temp_gen_pos.w = i;
+    for (int j=0; j<(int)LA.W[i].size(); ++j) {
+      int gen = LA.W[i][j];
       temp_gen_pos.i = j;
       gen_positions[ abs(gen) ].push_back(temp_gen_pos);
     }
   } 
+  
+  //make the positions vector the right size
+  LA.positions.resize(nwords);
+  for (int i=0; i<nwords; ++i) {
+    LA.positions[i].resize(LA.W[i].size(), -1);
+  }
+  
+  //copy the positions over
+  LA.gen_counts.resize(ngens+1);
+  for (int i=1; i<=ngens; ++i) {
+    LA.gen_counts[i] = gen_positions[i].size();
+    for (int j=0; j<(int)LA.gen_counts[i]; ++i) {
+      LA.positions[gen_positions[i][j].w][gen_positions[i][j].i] = i;
+    }
+  }
   
   //sort the gen positions as a good first guess
   
@@ -447,8 +459,15 @@ void Surface::minimal_intersection_position(std::vector<std::string>& W_words,
   //every time we do anything we must start over, because it's hard to know 
   //the effect of our moves
   
+  return LA;
 }
 
 
+void Surface::draw_loop_arrangement(LoopArrangement& LA) {
+  XGraphics X;
+  std::string key_press;
+  X.flush();
+  key_press = X.wait_for_key();
+}
   
   
