@@ -10,6 +10,8 @@
 
 struct LoopArrangement;
 
+struct Crossing;
+
 struct Surface {
   int genus;
   int nboundaries;
@@ -50,20 +52,6 @@ struct Surface {
   int cyclically_ordered(std::vector<int>& w1, int start1, int dir1,
                          std::vector<int>& w2, int start2, int dir2);
   
-  //finds the locations along the boundary edges associated to every letter 
-  //in the input words such that the intersection number is minimized
-  //this makes sure the input is combinatorially geodesic
-  //this may change the input loops! (to something the same in the group)
-  LoopArrangement minimal_intersection_position(std::vector<std::string>& W_words);
-  
-  //this draws a loop arrangement of the surface
-  void draw_loop_arrangement(LoopArrangement& LA);
-  
-  //produces a branched surface (cellulation) corresponding to 
-  //the complementary regions of the loops
-  //The cellulation is topologically the surface, and the 
-  //marked loops are part of the returned cellulation
-  void cellulation_from_loops(std::vector<std::string> W);
 };
 
 //this helps with arranging the geodesics
@@ -79,8 +67,68 @@ struct LoopArrangement {
   Surface* S;
   std::vector<std::string> W_words;
   std::vector<std::vector<int> > W;
-  std::vector<std::vector<int> > positions;
-  std::vector<int> gen_counts;
+  std::vector<std::vector<int> > positions_by_letter;
+  std::vector<std::vector<GenPosition> > positions_by_gen;
+  
+  std::vector<Crossing> crossings;
+  
+  LoopArrangement(Surface& S);
+  LoopArrangement(Surface& S, std::vector<std::string>& W_words);
+  LoopArrangement(Surface& S, std::vector<std::vector<int> >& W);
+  void init_from_vectors(Surface& S, std::vector<std::vector<int> >& W);
+  
+  //given the positions along the gen edges, get the position for each letter
+  void generate_positions_by_letter();
+  
+  //check if two strands cross at the given location
+  bool check_cross(int w1, int i1, int w2, int i2);
+  
+  //finds all crossings in a loop arrangement
+  //note that triple and up crossings will be reported as 
+  //all the component pair crossings
+  void find_all_crossings();
+  
+  //finds the locations along the boundary edges associated to every letter 
+  //in the input words such that the intersection number is minimized
+  //this makes sure the input is combinatorially geodesic
+  //this may change the input loops! (to something the same in the group)
+  void minimal_position();
+  
+  //this draws a loop arrangement of the surface
+  void show();
+  
+  //prints out the data
+  void print(std::ostream& os);
+  
+  //produces a branched surface (cellulation) corresponding to 
+  //the complementary regions of the loops
+  //The cellulation is topologically the surface, and the 
+  //marked loops are part of the returned cellulation
+  void cellulation_from_loops();
+  
 };
+
+
+
+//this allows us to package a crossing
+//note crossings happen between letters, so each crossing
+//gives the index of the letter just *before* the crossing for each word
+struct Crossing {
+  Surface* S;
+  std::vector<int>* W; //the list of words
+  int w1; //which word is the first one
+  int i1; //which is the first letter of the crossing
+  int w2; //the second word
+  int i2; //the first letter of the crossing in word 2
+};
+
+std::ostream& operator<<(std::ostream& os, Crossing& c);
+  
+
+
+
+
+
+
 
 #endif

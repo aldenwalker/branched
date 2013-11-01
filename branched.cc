@@ -381,8 +381,11 @@ int main(int argc, char* argv[]) {
   std::vector<std::string> W_words(2);
   W_words[0] = std::string("abABc");
   W_words[1] = std::string("ababaccdcdeaea");
-  LoopArrangement LA = S3.minimal_intersection_position(W_words);
-  S3.draw_loop_arrangement(LA);
+  LoopArrangement LA(S3, W_words);
+  std::cout << "There are " << LA.W.size() << " loops\n";
+  LA.print(std::cout);
+  LA.minimal_position();
+  LA.show();
   return 0;
 }
 

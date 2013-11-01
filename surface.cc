@@ -367,7 +367,83 @@ int Surface::cyclically_ordered(std::vector<int>& w1, int start1, int dir1,
 }
 
 
-bool sort_at_gen_positions(GenPosition& gp1, GenPosition& gp2) {
+
+
+
+
+
+LoopArrangement::LoopArrangement(Surface& S) {
+  W_words.resize(0);
+  W.resize(0);
+  this->S = &S;
+  positions_by_letter.resize(0);
+  positions_by_gen.resize(0);
+}
+
+LoopArrangement::LoopArrangement(Surface& S, std::vector<std::string>& W_words) {
+  std::vector<std::vector<int> > W_in(W_words.size());
+  for (int i=0; i<(int)W_in.size(); ++i) {
+    W_in[i] = vector_from_word(W_words[i]);
+  }
+  init_from_vectors(S, W_in);
+}  
+  
+ 
+LoopArrangement::LoopArrangement(Surface& S, std::vector<std::vector<int> >& W_in) {
+  init_from_vectors(S, W_in);
+}
+  
+void LoopArrangement::init_from_vectors(Surface& S, std::vector<std::vector<int> >& W_in)  {
+  this->S = &S;
+  W = W_in;
+  W_words.resize(W.size());
+  
+  //make the input geodesic
+  for (int i=0; i<(int)W.size(); ++i) {
+    W[i] = S.geodesic(W[i]);
+    W_words[i] = word_from_vector(W[i]);
+  }
+  
+  //count the gens and find where they are
+  positions_by_gen.resize(S.ngens+1);
+  GenPosition temp_gen_pos;
+  temp_gen_pos.S = &S;
+  for (int i=0; i<(int)W.size(); ++i) {
+    temp_gen_pos.word = &(W[i]);
+    temp_gen_pos.w = i;
+    for (int j=0; j<(int)W[i].size(); ++j) {
+      int gen = W[i][j];
+      temp_gen_pos.i = j;
+      positions_by_gen[ abs(gen) ].push_back(temp_gen_pos);
+    }
+  } 
+  
+  generate_positions_by_letter();
+  
+}
+
+
+void LoopArrangement::generate_positions_by_letter() {
+  //make the positions vector the right size
+  positions_by_letter.resize(W.size());
+  for (int i=0; i<(int)W.size(); ++i) {
+    positions_by_letter[i].resize(W[i].size(), -1);
+  }
+  
+  //copy the positions over
+  for (int i=1; i<=S->ngens; ++i) {
+    for (int j=0; j<(int)positions_by_gen[i].size(); ++j) {
+      positions_by_letter[positions_by_gen[i][j].w][positions_by_gen[i][j].i] = j;
+    }
+  }
+}
+
+
+
+
+
+
+bool sort_at_gen_positions(const GenPosition& gp1, const GenPosition& gp2) {
   //scan left and right to determine the cyclic order
   //this does NOT take into account anything with the relator
   //it's just for getting a good idea for nonstupid initial placement
@@ -406,70 +482,86 @@ bool sort_at_gen_positions(GenPosition& gp1, GenPosition& gp2) {
   }
 }
 
-LoopArrangement Surface::minimal_intersection_position(std::vector<std::string>& W_words) {
-  
-  LoopArrangement LA;
-  LA.W_words = W_words;
 
-  //turn the words into gen lists
-  LA.W = std::vector<std::vector<int> >(W_words.size());
-  for (int i=0; i<(int)W_words.size(); ++i) {
-    LA.W[i] = vector_from_word(W_words[i]);
-  }
-  
-  //reduce the words to geodesics
-  int nwords = LA.W.size();
-  for (int i=0; i<nwords; ++i) {
-    LA.W[i] = geodesic(LA.W[i]);
-  }
-  
-  //count the gens and find where they are
-  std::vector<std::vector<GenPosition> > gen_positions(ngens+1, std::vector<GenPosition>());
-  GenPosition temp_gen_pos;
-  temp_gen_pos.S = this;
-  for (int i=0; i<nwords; ++i) {
-    temp_gen_pos.word = &(LA.W[i]);
-    temp_gen_pos.w = i;
-    for (int j=0; j<(int)LA.W[i].size(); ++j) {
-      int gen = LA.W[i][j];
-      temp_gen_pos.i = j;
-      gen_positions[ abs(gen) ].push_back(temp_gen_pos);
-    }
-  } 
-  
-  //make the positions vector the right size
-  LA.positions.resize(nwords);
-  for (int i=0; i<nwords; ++i) {
-    LA.positions[i].resize(LA.W[i].size(), -1);
-  }
-  
-  //copy the positions over
-  LA.gen_counts.resize(ngens+1);
-  for (int i=1; i<=ngens; ++i) {
-    LA.gen_counts[i] = gen_positions[i].size();
-    for (int j=0; j<(int)LA.gen_counts[i]; ++i) {
-      LA.positions[gen_positions[i][j].w][gen_positions[i][j].i] = i;
+
+
+
+bool LoopArrangement::check_cross(int w1, int i1, int w2, int i2) {
+  return false;
+}
+
+
+
+void LoopArrangement::find_all_crossings() {
+  //for every pair of segments, check if they intersect
+  for (int i=0; i<(int)W.size(); ++i) {
+    Crossing temp_c;
+    temp_c.S = S;
+    temp_c.W = &W[i];
+    temp_c.w1 = i;
+    for (int j=0; j<(int)W[i].size(); ++j) {
+      temp_c.i1 = j;
+      
+      for (int k=0; k<(int)W.size(); ++k) {
+        temp_c.w2 = k;
+        for (int m=0; m<(int)W[k].size(); ++m) {
+          if (k==i && m==j) continue;
+        }
+      }
     }
   }
+}   
+
+
+
+
+
+
+
+
+
+void LoopArrangement::minimal_position() {
+  
+  find_all_crossings();
+  
+  std::cout << "Showing unsorted positions\n";
+  std::cout << "There are " << crossings.size() << " crossings\n";
+  show();
   
   //sort the gen positions as a good first guess
+  for (int i=1; i<=S->ngens; ++i) {
+    std::sort(positions_by_gen[i].begin(), positions_by_gen[i].end(), sort_at_gen_positions);
+  }
   
+  generate_positions_by_letter();
+  find_all_crossings();
+  
+  std::cout << "Showing sorted positions\n";
+  std::cout << "There are " << crossings.size() << " crossings\n";
+  show();
   
   //now we go through and find every single crossing and check 
   //each of 4 directions for whether it can be reduced with a bigon move.
   //every time we do anything we must start over, because it's hard to know 
   //the effect of our moves
-  
-  return LA;
+  find_all_crossings();
 }
 
 
-void Surface::draw_loop_arrangement(LoopArrangement& LA) {
+std::ostream& operator<<(std::ostream& os, Crossing& c) {
+  os << "(" << c.w1 << "," << c.i1 << ")X(" << c.w1 << "," << c.i2 << ")\n";
+  return os;
+}
+
+
+
+
+void LoopArrangement::show() {
   float PI = 3.1415926535;
   
-  //start an 800x800 graphics windows with range [-1,1]x[-1,1]
-  Point2d<float> translate(400,400);
-  XGraphics X(800, 800, (float)400, translate);
+  //start an 800x900 graphics windows with range [-1,1]x[-1.1,1]
+  Point2d<float> translate(410,480);
+  XGraphics X(820, 890, (float)400, translate);
   
   //figure out where the edges are for the 
   //generators and inverses
@@ -480,22 +572,85 @@ void Surface::draw_loop_arrangement(LoopArrangement& LA) {
   Point2d<float> prev_point(1,0);
   Point2d<float> current_point;
   float current_angle = 0;
-  float angle_step = (2*PI)/cyclic_order.size();
-  for (int i=0; i<(int)cyclic_order.size(); ++i) {
+  float angle_step = (2*PI)/S->cyclic_order.size();
+  for (int i=0; i<(int)S->cyclic_order.size(); ++i) {
     current_angle += angle_step;
     current_point = Point2d<float>(cos(current_angle), sin(current_angle));
-    int gen = cyclic_order[i];
+    int gen = S->cyclic_order[i];
+    int num_crossing_gen = positions_by_gen[abs(gen)].size();
     gen_edge_start[gen] = prev_point;
     gen_edge_end[gen] = current_point;
-    gen_edge_step[gen] = (float)(1.0/(LA.gen_counts[abs(gen)]+1)) * (current_point-prev_point);
+    gen_edge_step[gen] = (float)(1.0/(num_crossing_gen+1)) * (current_point-prev_point);
     prev_point = current_point;
+  }
+  
+  //get the colors for each word
+  const char* color_list_arr[] = {"red", "blue", "limegreen", "gold", "cyan", "fuchsia", "orange"};
+  std::vector<std::string> color_list(color_list_arr, color_list_arr+7);
+  std::vector<int> word_colors(W.size());
+  for (int i=0; i<(int)W.size(); ++i) {
+    word_colors[i] = X.get_color(color_list[i%color_list.size()].c_str());
   }
   
   //draw the polygon
   int black_color = X.get_color("black");
-  for (int i=0; i<(int)cyclic_order.size(); ++i) {
-    int gen = cyclic_order[i];
+  for (int i=0; i<(int)S->cyclic_order.size(); ++i) {
+    int gen = S->cyclic_order[i];
     X.draw_line(gen_edge_start[gen], gen_edge_end[gen], black_color);
+    //and the label
+    Point2d<float> label_spot = (float)(1.02*0.5)*(gen_edge_start[gen] + gen_edge_end[gen]);
+    std::string label(1,alpha_ind_to_letter(gen));
+    X.draw_text_centered(label_spot, label, black_color);
+  }
+  
+  //print out the key
+  Point2d<float> box_pos(-0.90, -1);
+  Point2d<float> word_pos(-0.88, -1);
+  Point2d<float> step(0, -0.03);
+  for (int i=0; i<(int)W.size(); ++i) {
+    X.draw_box_radius(box_pos, 0.01, word_colors[i]);
+    X.draw_text(word_pos, W_words[i], black_color);
+    box_pos = box_pos + step;
+    word_pos = word_pos + step;
+  }
+  
+  //draw the loops
+  for (int i=0; i<(int)W.size(); ++i) {
+    int col = word_colors[i];
+    //std::cout << "Word " << i << ": " << LA.W[i] << " (" << LA.W_words[i] << ")\n";
+    for (int j=0; j<(int)W[i].size(); ++j) {
+      int j1 = j;
+      int j2 = (j+1)%(int)W[i].size();
+      int leaving_gen = -W[i][j1];
+      int target_gen = W[i][j2];
+      int j1_pos_ind = positions_by_letter[i][j1];
+      int j2_pos_ind = positions_by_letter[i][j2];
+      Point2d<float> j1_pos;
+      Point2d<float> j2_pos;
+      j1_pos = (  leaving_gen > 0 
+                ? gen_edge_start[leaving_gen] + (float)(j1_pos_ind+1)*gen_edge_step[leaving_gen]
+                : gen_edge_end[leaving_gen] - (float)(j1_pos_ind+1)*gen_edge_step[leaving_gen] );
+      j2_pos = (  target_gen > 0 
+                ? gen_edge_start[target_gen] + (float)(j2_pos_ind+1)*gen_edge_step[target_gen]
+                : gen_edge_end[target_gen] - (float)(j2_pos_ind+1)*gen_edge_step[target_gen] );
+      X.draw_line(j1_pos, j2_pos, col, 2);
+      std::stringstream edge_label_s;
+      edge_label_s << j;
+      std::string edge_label = edge_label_s.str();
+      X.draw_text_centered(j1_pos + (float)0.5*(j2_pos-j1_pos), edge_label, black_color);
+      //std::cout << "Letters " << j1 << " and " << j2 << " leaving gen: " << leaving_gen << 
+      //             " target gen: " << target_gen << "\n";
+      //std::cout << "j1_pos_ind: " << j1_pos_ind << "\n";
+      //std::cout << "gen_edge_start: " << gen_edge_start[leaving_gen] << "\n";
+      //std::cout << "gen_edge_end: " << gen_edge_end[leaving_gen] << "\n";
+      //std::cout << "gen_edge_step: " << gen_edge_step[leaving_gen] << "\n";
+      //std::cout << "j2_pos_ind: " << j2_pos_ind << "\n";
+      //std::cout << "gen_edge_start: " << gen_edge_start[target_gen] << "\n";
+      //std::cout << "gen_edge_end: " << gen_edge_end[target_gen] << "\n";
+      //std::cout << "gen_edge_step: " << gen_edge_step[target_gen] << "\n";
+      
+      
+    }
   }
   
   std::string key_press;
@@ -504,7 +659,12 @@ void Surface::draw_loop_arrangement(LoopArrangement& LA) {
 }
   
   
-  
+void LoopArrangement::print(std::ostream& os) {
+  os << "Loop arrangement of " << W.size() << " loops\n";
+  for (int i=0; i<(int)W.size(); ++i) {
+    os << i << ": " << W[i] << "(" << W_words[i] << ")\n";
+  }
+}
   
   
   

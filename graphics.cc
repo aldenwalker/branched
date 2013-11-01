@@ -26,6 +26,8 @@ XGraphics::XGraphics() {
   XMapWindow(display, win);
   color_list.clear();
   
+  line_thickness = 1;
+  
   scale = 1.0;
   translate = Point2d<float>(0.0, 0.0);
   
@@ -58,6 +60,8 @@ XGraphics::XGraphics(int w, int h, float s, Point2d<float>& t) {
   XSetBackground(display, gc, WhitePixel(display, screen_num));
   XMapWindow(display, win);
   color_list.clear();
+  
+  line_thickness = 1;
   
   scale = s;
   translate = t;
@@ -114,21 +118,45 @@ void XGraphics::list_fonts() {
 
 
 void XGraphics::setup_font(void){
-    const char * fontname = "-*-georgia-*-r-*-*-14-*-*-*-*-*-*-*";
- //   const char * fontname = "-*-times-*-r-*-*-16-*-*-*-*-*-*-*";
-
-    font = XLoadQueryFont (display, fontname);
-    /* If the font could not be loaded, revert to the "fixed" font. */
-    if (! font) {
-      font = XLoadQueryFont (display, "fixed");
-      std::cout << "couldn't find font!\n";
-    }
-    XSetFont (display, gc, font->fid);
+  //just use the fixed font, because it looks fine
+  font = XLoadQueryFont(display, "fixed");
+  XSetFont(display, gc, font->fid);
+  //const char * fontname = "-*-georgia-*-r-*-*-14-*-*-*-*-*-*-*";
+  //const char * fontname = "-*-times-*-r-*-*-16-*-*-*-*-*-*-*";
+  //font = XLoadQueryFont (display, fontname);
+  //if (! font) {
+  //  font = XLoadQueryFont (display, "fixed");
+  //  std::cout << "couldn't find font!\n";
+  //}
+  //XSetFont (display, gc, font->fid);
 }
 
-	
+Point2d<int> XGraphics::text_offset_left(std::string& S) {
+  XCharStruct te;
+  int fdir, fdescent, fascent;
+  XTextExtents(font, S.c_str(), S.size(), &fdir, &fascent, &fdescent, &te);
+  int height_offset = (te.ascent-te.descent)/2;
+  if ( (te.ascent-te.descent)%2 == 1) --height_offset;
+  return Point2d<int>(-te.lbearing, -height_offset);
+}
+
+//returns the vector to ADD to your vector such that the center of the 
+//text extents gets placed directly over your vector
+Point2d<int> XGraphics::text_offset_center(std::string& S) {
+  XCharStruct te;
+  int fdir, fdescent, fascent;
+  XTextExtents(font, S.c_str(), S.size(), &fdir, &fascent, &fdescent, &te);
+  int height_offset = (te.ascent-te.descent)/2;
+  //if ( (te.ascent-te.descent)%2 == 1) --height_offset;
+  int width_offset = (te.rbearing - te.lbearing)/2;
+  return Point2d<int>(-width_offset, -height_offset);
+}
+
+
+
+
 void XGraphics::erase_field(void){
-	XClearWindow(display, win);
+  XClearWindow(display, win);
 }
 
 Point2d<int> XGraphics::mouse_location(){
@@ -139,9 +167,9 @@ Point2d<int> XGraphics::mouse_location(){
   unsigned int mask_return;
   Point2d<int> p;
     
-	XQueryPointer(display, win, &window_returned,
-                &window_returned, &root_x, &root_y, &win_x, &win_y,
-                &mask_return);
+  XQueryPointer(display, win, &window_returned,
+          &window_returned, &root_x, &root_y, &win_x, &win_y,
+          &mask_return);
   p.x=win_x;
   p.y=win_y;
   return p;
@@ -152,6 +180,12 @@ void XGraphics::draw_point(const Point2d<int>& p, long col){
   XDrawPoint(display, win, gc, p.x, height-p.y);
 }
 
+void XGraphics::draw_point(const Point2d<float>& p, long col){
+  XSetForeground(display, gc, col);
+  Point2d<int> real_p(scale*p.x + translate.x, scale*p.y +translate.y);
+  XDrawPoint(display, win, gc, real_p.x, height-real_p.y);
+}
+
 void XGraphics::draw_line(const Point2d<int>& p1, const Point2d<int>& p2, long col) {
   XSetForeground(display, gc, col);
   XSetLineAttributes(display, gc, 1.5, LineSolid, 1, 1);
@@ -160,11 +194,24 @@ void XGraphics::draw_line(const Point2d<int>& p1, const Point2d<int>& p2, long c
 
 void XGraphics::draw_line(const Point2d<float>& p1, const Point2d<float>& p2, long col) {
   XSetForeground(display, gc, col);
-  XSetLineAttributes(display, gc, 1.5, LineSolid, 1, 1);
+  XSetLineAttributes(display, gc, line_thickness, LineSolid, 1, 1);
   Point2d<int> p1_real((int)(p1.x*scale + translate.x), (int)(p1.y*scale + translate.y));
   Point2d<int> p2_real((int)(p2.x*scale + translate.x), (int)(p2.y*scale + translate.y));
   XDrawLine(display, win, gc, p1_real.x, height-p1_real.y, p2_real.x, height-p2_real.y);
 }
+
+
+void XGraphics::draw_line(const Point2d<float>& p1, const Point2d<float>& p2, long col, int thickness) {
+  XSetForeground(display, gc, col);
+  XSetLineAttributes(display, gc, thickness, LineSolid, CapButt, JoinMiter);
+  Point2d<int> p1_real((int)(p1.x*scale + translate.x), (int)(p1.y*scale + translate.y));
+  Point2d<int> p2_real((int)(p2.x*scale + translate.x), (int)(p2.y*scale + translate.y));
+  XDrawLine(display, win, gc, p1_real.x, height-p1_real.y, p2_real.x, height-p2_real.y);
+  XSetLineAttributes(display, gc, line_thickness, LineSolid, CapButt, JoinMiter);
+}
+  
+  
+
 
 void XGraphics::draw_square(int x, int y, int z, long col){
   Point2d<int> p1(x,y);
@@ -205,6 +252,14 @@ void XGraphics::draw_filled_rectangle(int x, int y, int zx, int zy, long col) {
   XFillRectangle(display, win, gc, x, height-(y+zy), zx, zy);
 }
 
+void XGraphics::draw_box_radius(Point2d<float>& center, float radius, long col) {
+  Point2d<int> LL_real = Point2d<int>( (int)((center.x-radius)*scale + translate.x),
+                                       (int)((center.y-radius)*scale + translate.y));
+  int z = (int)(2*radius*scale);
+  XSetForeground(display, gc, col);
+  XFillRectangle(display, win, gc, LL_real.x, height-(LL_real.y+z), z, z);
+  draw_point(center, col);
+}
 
 void XGraphics::draw_faint_line(const Point2d<int>& p1, 
                                 const Point2d<int>& p2, 
@@ -229,20 +284,20 @@ void XGraphics::draw_circle(const Point2d<int>& p, int r, long col){
 };
 
 void XGraphics::draw_concentric_circles(const Point2d<int>& p, int r, long col){
-	int s;
+  int s;
   for(s=3;s>0;s--){
     XSetForeground(display, gc, col*s);
     XSetLineAttributes(display, gc, 1, LineSolid, 1, 1);
     XSetFillStyle(display, gc, FillSolid);
     XDrawArc(display, win, gc, p.x-r*s+1, p.y-r*s+1, 2*r*s-2, 2*r*s-2, 0, 23040);
-	}
+  }
 }
 
 void XGraphics::draw_path(const std::vector<Point2d<int> >& L, long col){
-	int i;
-	for(i=1; i<(int)L.size(); i++){
-		draw_line(L[i-1],L[i],col);
-	}
+  int i;
+  for(i=1; i<(int)L.size(); i++){
+    draw_line(L[i-1],L[i],col);
+  }
 }
 
 void XGraphics::draw_text(const Point2d<int>& p, std::stringstream &T, long col){
@@ -257,14 +312,30 @@ void XGraphics::draw_text(const Point2d<int>& p, std::string &S, long col){
   XDrawString(display,win,gc,p.x,height-p.y,S.c_str(),strlen(S.c_str()));
 }
 
+void XGraphics::draw_text(const Point2d<float>& p, std::string &S, long col) {
+  XSetForeground(display, gc, col);
+  Point2d<int> real_p = Point2d<int>((int)(p.x*scale + translate.x), 
+                                     (int)(p.y*scale + translate.y));
+  Point2d<int> offset = text_offset_left(S);
+  XDrawString(display, win, gc, real_p.x+offset.x, height-(real_p.y+offset.y), S.c_str(), S.size());
+}
+  
+void XGraphics::draw_text_centered(const Point2d<float>& p, std::string &S, long col) {
+  XSetForeground(display, gc, col);
+  Point2d<int> real_p( (int)(p.x*scale + translate.x), (int)(p.y*scale + translate.y) );
+  Point2d<int> offset = text_offset_center(S);
+  XDrawString(display, win, gc, real_p.x+offset.x, height-(real_p.y+offset.y), S.c_str(), S.size()); 
+  //draw_point(p, col);
+}
+  
 void XGraphics::draw_label(const Point2d<int>& p, int i, long col){
   XSetForeground(display, gc, col);
   std::stringstream T;
-	T << i;
+  T << i;
   Point2d<int> draw_loc;
   draw_loc.x = p.x+5;
   draw_loc.y = p.y-5;
-	this->draw_text(draw_loc, T, col);
+  this->draw_text(draw_loc, T, col);
 }
 
 std::string XGraphics::wait_for_key() {
