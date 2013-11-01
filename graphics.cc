@@ -4,16 +4,6 @@
 
 #include "graphics.h"
 
-Point2d::Point2d() {
-  x = y = 0;
-}
-
-Point2d::Point2d(int X, int Y) {
-  x = X;
-  y = Y;
-}
-
-
 XGraphics::XGraphics() {
   border_width = 4;
   display=XOpenDisplay(NULL);
@@ -36,6 +26,9 @@ XGraphics::XGraphics() {
   XMapWindow(display, win);
   color_list.clear();
   
+  scale = 1.0;
+  translate = Point2d<float>(0.0, 0.0);
+  
   while (true) {  //wait until the window is actually mapped
     XEvent e;
     XNextEvent(display, &e);
@@ -43,6 +36,45 @@ XGraphics::XGraphics() {
   }
   setup_font();
 }
+
+XGraphics::XGraphics(int w, int h, float s, Point2d<float>& t) {
+  border_width = 4;
+  display=XOpenDisplay(NULL);
+  screen_num = DefaultScreen(display);  
+  display_width = DisplayWidth(display, screen_num);
+  display_height = DisplayHeight(display, screen_num);
+  width = w;
+  height = h;
+  win = XCreateSimpleWindow(display, RootWindow(display, screen_num), 0, 0, width, 
+                            height, border_width, BlackPixel(display, screen_num), WhitePixel(display, screen_num));
+  XSelectInput(display, win, ExposureMask | 
+                             KeyPressMask | 
+                             ButtonPressMask | 
+                             PointerMotionMask |
+                             StructureNotifyMask);
+  gc = DefaultGC(display, screen_num);
+  screen_colormap = DefaultColormap(display, screen_num);
+  XSetForeground(display, gc, BlackPixel(display, screen_num));
+  XSetBackground(display, gc, WhitePixel(display, screen_num));
+  XMapWindow(display, win);
+  color_list.clear();
+  
+  scale = s;
+  translate = t;
+  
+  while (true) {  //wait until the window is actually mapped
+    XEvent e;
+    XNextEvent(display, &e);
+    if (e.type == Expose) break;
+  }
+  setup_font();
+}
+
+
+
+
+
+
 
 XGraphics::~XGraphics() {
   XCloseDisplay(display);
@@ -99,13 +131,13 @@ void XGraphics::erase_field(void){
 	XClearWindow(display, win);
 }
 
-Point2d XGraphics::mouse_location(){
+Point2d<int> XGraphics::mouse_location(){
 //    Bool result;
   Window window_returned;
   int root_x, root_y;
   int win_x, win_y;
   unsigned int mask_return;
-  Point2d p;
+  Point2d<int> p;
     
 	XQueryPointer(display, win, &window_returned,
                 &window_returned, &root_x, &root_y, &win_x, &win_y,
@@ -115,22 +147,30 @@ Point2d XGraphics::mouse_location(){
   return p;
 }
 
-void XGraphics::draw_point(const Point2d& p, long col){
+void XGraphics::draw_point(const Point2d<int>& p, long col){
   XSetForeground(display, gc, col);
   XDrawPoint(display, win, gc, p.x, height-p.y);
 }
 
-void XGraphics::draw_line(const Point2d& p1, const Point2d& p2, long col) {
+void XGraphics::draw_line(const Point2d<int>& p1, const Point2d<int>& p2, long col) {
   XSetForeground(display, gc, col);
   XSetLineAttributes(display, gc, 1.5, LineSolid, 1, 1);
   XDrawLine(display, win, gc, p1.x, height-p1.y, p2.x, height-p2.y);
 }
 
+void XGraphics::draw_line(const Point2d<float>& p1, const Point2d<float>& p2, long col) {
+  XSetForeground(display, gc, col);
+  XSetLineAttributes(display, gc, 1.5, LineSolid, 1, 1);
+  Point2d<int> p1_real((int)(p1.x*scale + translate.x), (int)(p1.y*scale + translate.y));
+  Point2d<int> p2_real((int)(p2.x*scale + translate.x), (int)(p2.y*scale + translate.y));
+  XDrawLine(display, win, gc, p1_real.x, height-p1_real.y, p2_real.x, height-p2_real.y);
+}
+
 void XGraphics::draw_square(int x, int y, int z, long col){
-  Point2d p1(x,y);
-  Point2d p2(x+z,y);
-  Point2d p3(x+z,y+z);
-  Point2d p4(x,y+z);
+  Point2d<int> p1(x,y);
+  Point2d<int> p2(x+z,y);
+  Point2d<int> p3(x+z,y+z);
+  Point2d<int> p4(x,y+z);
   this->draw_line(p1, p2, col);
   this->draw_line(p2, p3, col);
   this->draw_line(p3, p4, col);
@@ -144,10 +184,10 @@ void XGraphics::draw_square(int x, int y, int z, long col){
 }
 
 void XGraphics::draw_rectangle(int x, int y, int zx, int zy, long col) {
-  Point2d p1(x,y);
-  Point2d p2(x+zx,y);
-  Point2d p3(x+zx,y+zy);
-  Point2d p4(x,y+zy);
+  Point2d<int> p1(x,y);
+  Point2d<int> p2(x+zx,y);
+  Point2d<int> p3(x+zx,y+zy);
+  Point2d<int> p4(x,y+zy);
   this->draw_line(p1, p2, col);
   this->draw_line(p2, p3, col);
   this->draw_line(p3, p4, col);
@@ -166,29 +206,29 @@ void XGraphics::draw_filled_rectangle(int x, int y, int zx, int zy, long col) {
 }
 
 
-void XGraphics::draw_faint_line(const Point2d& p1, 
-                                const Point2d& p2, 
+void XGraphics::draw_faint_line(const Point2d<int>& p1, 
+                                const Point2d<int>& p2, 
                                 long col){
   XSetForeground(display, gc, (long) 0xDDDDDD);
 	XSetLineAttributes(display, gc, 1, LineOnOffDash, 1, 1);
   XDrawLine(display, win, gc, p1.x, p1.y, p2.x, p2.y);
 }
 
-void XGraphics::erase_circle(const Point2d& p, int r){
+void XGraphics::erase_circle(const Point2d<int>& p, int r){
 	XSetForeground(display, gc, 0xFFFFFF);
   XSetLineAttributes(display, gc, 1, LineOnOffDash, 1, 1);
 	XSetFillStyle(display, gc, FillSolid);
   XFillArc(display, win, gc, p.x-r, p.y-r, 2*r, 2*r, 0, 23040);
 }
 
-void XGraphics::draw_circle(const Point2d& p, int r, long col){
+void XGraphics::draw_circle(const Point2d<int>& p, int r, long col){
     XSetForeground(display, gc, col);
     XSetLineAttributes(display, gc, 1, LineSolid, 1, 1);
     XSetFillStyle(display, gc, FillSolid); 
     XDrawArc(display, win, gc, (p.x-r), (height-p.y)-r, 2*r, 2*r, 0, 23040);
 };
 
-void XGraphics::draw_concentric_circles(const Point2d& p, int r, long col){
+void XGraphics::draw_concentric_circles(const Point2d<int>& p, int r, long col){
 	int s;
   for(s=3;s>0;s--){
     XSetForeground(display, gc, col*s);
@@ -198,30 +238,30 @@ void XGraphics::draw_concentric_circles(const Point2d& p, int r, long col){
 	}
 }
 
-void XGraphics::draw_path(const std::vector<Point2d>& L, long col){
+void XGraphics::draw_path(const std::vector<Point2d<int> >& L, long col){
 	int i;
 	for(i=1; i<(int)L.size(); i++){
 		draw_line(L[i-1],L[i],col);
 	}
 }
 
-void XGraphics::draw_text(const Point2d& p, std::stringstream &T, long col){
+void XGraphics::draw_text(const Point2d<int>& p, std::stringstream &T, long col){
   std::string S;
   XSetForeground(display, gc, col);
   S=T.str();
   XDrawString(display,win,gc,p.x,height-p.y,S.c_str(),strlen(S.c_str()));
 }
 
-void XGraphics::draw_text(const Point2d& p, std::string &S, long col){
+void XGraphics::draw_text(const Point2d<int>& p, std::string &S, long col){
   XSetForeground(display, gc, col);
   XDrawString(display,win,gc,p.x,height-p.y,S.c_str(),strlen(S.c_str()));
 }
 
-void XGraphics::draw_label(const Point2d& p, int i, long col){
+void XGraphics::draw_label(const Point2d<int>& p, int i, long col){
   XSetForeground(display, gc, col);
   std::stringstream T;
 	T << i;
-  Point2d draw_loc;
+  Point2d<int> draw_loc;
   draw_loc.x = p.x+5;
   draw_loc.y = p.y-5;
 	this->draw_text(draw_loc, T, col);

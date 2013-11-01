@@ -1,5 +1,6 @@
 #include <sstream>
 #include <algorithm>
+#include <cmath>
 
 #include "surface.h"
 #include "graphics.h"
@@ -464,20 +465,38 @@ LoopArrangement Surface::minimal_intersection_position(std::vector<std::string>&
 
 
 void Surface::draw_loop_arrangement(LoopArrangement& LA) {
-  XGraphics X;
+  float PI = 3.1415926535;
+  
+  //start an 800x800 graphics windows with range [-1,1]x[-1,1]
+  Point2d<float> translate(400,400);
+  XGraphics X(800, 800, (float)400, translate);
   
   //figure out where the edges are for the 
   //generators and inverses
-  std::map<int, Point2d> gen_edge_start;
-  std::map<int, Point2d> gen_edge_end;
-  std::map<int, Point2d> gen_edge_step;
+  std::map<int, Point2d<float> > gen_edge_start;
+  std::map<int, Point2d<float> > gen_edge_end;
+  std::map<int, Point2d<float> > gen_edge_step;
   //start at (1,0)
-  Point2d current_point(1,0);
+  Point2d<float> prev_point(1,0);
+  Point2d<float> current_point;
+  float current_angle = 0;
+  float angle_step = (2*PI)/cyclic_order.size();
+  for (int i=0; i<(int)cyclic_order.size(); ++i) {
+    current_angle += angle_step;
+    current_point = Point2d<float>(cos(current_angle), sin(current_angle));
+    int gen = cyclic_order[i];
+    gen_edge_start[gen] = prev_point;
+    gen_edge_end[gen] = current_point;
+    gen_edge_step[gen] = (float)(1.0/(LA.gen_counts[abs(gen)]+1)) * (current_point-prev_point);
+    prev_point = current_point;
+  }
   
-  
-  
-  
-  
+  //draw the polygon
+  int black_color = X.get_color("black");
+  for (int i=0; i<(int)cyclic_order.size(); ++i) {
+    int gen = cyclic_order[i];
+    X.draw_line(gen_edge_start[gen], gen_edge_end[gen], black_color);
+  }
   
   std::string key_press;
   X.flush();
