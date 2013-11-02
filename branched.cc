@@ -382,9 +382,16 @@ int main(int argc, char* argv[]) {
   W_words[0] = std::string("abABc");
   W_words[1] = std::string("ababaccdcdeaea");
   LoopArrangement LA(S3, W_words);
-  std::cout << "There are " << LA.W.size() << " loops\n";
+  LA.find_all_crossings();
+  std::cout << "After just initializing, " << LA.crossings.size() << " crossings:\n";
   LA.print(std::cout);
+  LA.show();
+  
   LA.minimal_position();
+  LA.find_all_crossings();
+  std::cout << "After minimizing, " << LA.crossings.size() << " crossings:\n";
+  LA.print(std::cout);
+  
   LA.show();
   return 0;
 }

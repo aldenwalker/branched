@@ -12,6 +12,8 @@ struct LoopArrangement;
 
 struct Crossing;
 
+struct GenPosition; 
+
 struct Surface {
   int genus;
   int nboundaries;
@@ -40,8 +42,8 @@ struct Surface {
   std::string geodesic(std::string& w);
   
   //reduce a word into a combinatorial geodesic
-  //this is NOT unique obviously
-  std::vector<int> geodesic(std::vector<int>& w);
+  //this is unique if you ask for it
+  void make_geodesic(std::vector<int>& w, bool unique_geodesics=false);
   
   //returns +/-1 depending on whether the gen list x,y,z is positively cyclically ordered
   int cyclically_ordered(SignedInd x, SignedInd y, SignedInd z);
@@ -56,11 +58,25 @@ struct Surface {
 
 //this helps with arranging the geodesics
 struct GenPosition {
+  Surface* S;             //the surface we're working in
   std::vector<int>* word; //pointer to the actual word
   int w;                  //word index
   int i;                  //letter index
-  Surface* S;             //the surface we're working in
 };
+
+//this too
+//this is the same information as a crossing obviously, but whatever
+//it's just for sorting the stuff
+// struct GenPositionPair {
+//   int w1, i1, w2, i2;
+//   bool operator<(const GenPositionPair& other) {
+//     if (w1 != other.w1) return (w1 < other.w1);
+//     if (w2 != other.w2) return (w2 < other.w2);
+//     if (i1 != other.i1) return (i1 < other.i1);
+//     if (i2 != other.i2) return (i2 < other.i2);
+//     return true;
+//   }
+// };
 
 //this allows us to package a loop arrangement
 struct LoopArrangement {
@@ -75,7 +91,9 @@ struct LoopArrangement {
   LoopArrangement(Surface& S);
   LoopArrangement(Surface& S, std::vector<std::string>& W_words);
   LoopArrangement(Surface& S, std::vector<std::vector<int> >& W);
-  void init_from_vectors(Surface& S, std::vector<std::vector<int> >& W);
+  void init_from_vectors(Surface& S, 
+                        std::vector<std::vector<int> >& W,
+                        bool unique_geodesics=false);
   
   //given the positions along the gen edges, get the position for each letter
   void generate_positions_by_letter();

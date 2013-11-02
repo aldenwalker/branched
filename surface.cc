@@ -301,11 +301,11 @@ void Surface::apply_relator(std::vector<int>& w, int pos, int len, bool inv) {
 
 std::string Surface::geodesic(std::string& w) {
   std::vector<int> wv = vector_from_word(w);
-  std::vector<int> wv_g = geodesic(wv);
-  return word_from_vector(wv_g);
+  make_geodesic(wv);
+  return word_from_vector(wv);
 }
 
-std::vector<int> Surface::geodesic(std::vector<int>& w) {
+void Surface::make_geodesic(std::vector<int>& w, bool unique_geodesics) {
   //we scan the cyclic word w looking for segments in 
   //common with the relator or relator inverse
   //if all these segments have length <= 1/2 the relator length, 
@@ -339,7 +339,6 @@ std::vector<int> Surface::geodesic(std::vector<int>& w) {
     }
     if (!did_something) break;
   }
-  return w;
 }
 
 int Surface::cyclically_ordered(SignedInd x, SignedInd y, SignedInd z) {
@@ -393,14 +392,16 @@ LoopArrangement::LoopArrangement(Surface& S, std::vector<std::vector<int> >& W_i
   init_from_vectors(S, W_in);
 }
   
-void LoopArrangement::init_from_vectors(Surface& S, std::vector<std::vector<int> >& W_in)  {
+void LoopArrangement::init_from_vectors(Surface& S, 
+                                        std::vector<std::vector<int> >& W_in,
+                                        bool unique_geodesics)  {
   this->S = &S;
   W = W_in;
   W_words.resize(W.size());
   
   //make the input geodesic
   for (int i=0; i<(int)W.size(); ++i) {
-    W[i] = S.geodesic(W[i]);
+    S.make_geodesic(W[i], unique_geodesics);
     W_words[i] = word_from_vector(W[i]);
   }
   
@@ -446,7 +447,7 @@ void LoopArrangement::generate_positions_by_letter() {
 bool sort_at_gen_positions(const GenPosition& gp1, const GenPosition& gp2) {
   //scan left and right to determine the cyclic order
   //this does NOT take into account anything with the relator
-  //it's just for getting a good idea for nonstupid initial placement
+  //however, it should give the minimal position IF the geodesics are unique
   
   //the words can go in different directions and everything.
   //we'll change the signs so that we can think about both words 
@@ -463,6 +464,11 @@ bool sort_at_gen_positions(const GenPosition& gp1, const GenPosition& gp2) {
     return false;
   }
   int CO_forward = gp1.S->cyclically_ordered(w1, i1, w1s, w2, i2, w2s);
+  if (CO_forward == 0) { 
+    //this means the words are (cyclically) the same
+    //if 
+  }
+    
   int CO_backward = gp1.S->cyclically_ordered(w2, i2, -w2s, w1, i1, -w1s);
   if (CO_forward == CO_backward) {
     //(start, w1, w2), forward and (start, w2, w1) backward have the 
@@ -522,29 +528,33 @@ void LoopArrangement::find_all_crossings() {
 
 void LoopArrangement::minimal_position() {
   
-  find_all_crossings();
+  //Unnecessary:
+  //find_all_crossings();
+  //std::cout << "Showing unsorted positions\n";
+  //std::cout << "There are " << crossings.size() << " crossings\n";
+  //show();
+  //////////////////////
   
-  std::cout << "Showing unsorted positions\n";
-  std::cout << "There are " << crossings.size() << " crossings\n";
-  show();
+  //reget the geodesics and everything, except force uniqueness
+  init_from_vectors(*S, W, true);
   
-  //sort the gen positions as a good first guess
+  //sort the gen positions; now this will be minimal position
   for (int i=1; i<=S->ngens; ++i) {
-    std::sort(positions_by_gen[i].begin(), positions_by_gen[i].end(), sort_at_gen_positions);
+    std::sort(positions_by_gen[i].begin(), 
+              positions_by_gen[i].end(), 
+              sort_at_gen_positions);
   }
   
+  //regenerate the letter positions
   generate_positions_by_letter();
-  find_all_crossings();
   
-  std::cout << "Showing sorted positions\n";
-  std::cout << "There are " << crossings.size() << " crossings\n";
-  show();
-  
-  //now we go through and find every single crossing and check 
-  //each of 4 directions for whether it can be reduced with a bigon move.
-  //every time we do anything we must start over, because it's hard to know 
-  //the effect of our moves
-  find_all_crossings();
+  //unnecessary
+  //find_all_crossings();
+  //std::cout << "Showing sorted positions\n";
+  //std::cout << "There are " << crossings.size() << " crossings\n";
+  //show();
+  ///////////////////////////
+
 }
 
 
