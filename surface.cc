@@ -191,11 +191,12 @@ int cyclic_word_agreement_length(std::vector<int>& w1, int pos1, int dir1,
   int ans = 0;
   int w1pos = pos1;
   int w2pos = pos2;
+  int max_len = max(w1L, w2L);
   while (dir1*w1[pos_mod(w1pos,w1L)] == dir2*w2[pos_mod(w2pos,w2L)]) {
     ++ans;
     w1pos += dir1;
     w2pos += dir2;
-    if (ans == w1L || ans == w2L) return ans;
+    if (ans == max_len) return ans;
   }
   return ans;
 }
@@ -317,7 +318,29 @@ void Surface::make_geodesic(std::vector<int>& w, bool unique_geodesics) {
   //then it's geodesic
   cyclically_reduce(w);
   std::cout << "Geodesicifying " << w << "\n";
-  int too_long_length = relator.size()/2 + 1;  //if a segment is >= this length, we can shorten it
+  
+  //get the lengths we can shorten and stuff
+  bool do_unique_reduction = (relator.size()%2 == 0 && unique_geodesics);
+  int half_length = relator.size()/2;
+  int too_long_length = relator.size()/2 + 1;
+  std::vector<bool> places_to_shorten;
+  std::vector<bool> places_to_shorten_inverse;
+  if (do_unique_reduction) {
+    places_to_shorten.resize(relator.size());
+    places_to_shorten_inverse.resize(relator.size());
+    std::cout << "Doing unique reduction\n";
+    for (int i=0; i<(int)relator.size(); ++i) {
+      int im1 = (i==0 ? relator.size()-1 : i-1);
+      places_to_shorten[i] = (relator[i] > -relator[im1]);
+      places_to_shorten_inverse[i] = (relator_inverse[i] > -relator_inverse[im1]);
+    }
+    std::cout << "Places to shorten relator: \n";
+    for (int i=0; i<(int)relator.size(); ++i) {
+      std::cout << i << ":" << places_to_shorten[i] << " ";
+    }
+    std::cout << "\n";
+  }
+  
   while (true) {
     //scan to find a spot which is not geodesic
     bool did_something = false;
@@ -328,13 +351,19 @@ void Surface::make_geodesic(std::vector<int>& w, bool unique_geodesics) {
       int R_position = relator_inverse_map[w[i]];
       int r_agree_length = cyclic_word_agreement_length(w, i, relator, r_position);
       int R_agree_length = cyclic_word_agreement_length(w, i, relator_inverse, R_position);
-      if (r_agree_length >= too_long_length) {
+      if (r_agree_length >= too_long_length
+          || (do_unique_reduction 
+              && r_agree_length == half_length 
+              && places_to_shorten[r_position])) {
         std::cout << "Found agreement of length " << r_agree_length << " at pos " << i << "\n";
         apply_relator(w, i, r_agree_length);
         std::cout << "After replacing: " << w << "\n";
         did_something = true;
         break;
-      } else if (R_agree_length >= too_long_length) {
+      } else if (R_agree_length >= too_long_length
+                 || (do_unique_reduction 
+                      && R_agree_length == half_length 
+                      && places_to_shorten_inverse[R_position])) {
         std::cout << "Found inverse agreement of length " << R_agree_length << " at pos " << i << "\n";
         apply_relator(w, i, R_agree_length, true);
         std::cout << "After replacing: " << w << "\n";
@@ -364,10 +393,13 @@ int Surface::cyclically_ordered(std::vector<int>& w1, int start1, int dir1,
   int w1L = w1.size();
   int w2L = w2.size();
   int agreement = cyclic_word_agreement_length(w1, start1, dir1, w2, start2, dir2);
+  std::cout << "I found that the agreement  of (" << w1 << "," << start1 << "," << dir1 
+            << ") (" << w2 << "," << start2 << "," << dir2 << ") is " << agreement << "\n";
   if (agreement == max(w1L, w2L)) return 0;
   int w1_ind = pos_mod(start1 + dir1*agreement, w1L);
   int w2_ind = pos_mod(start2 + dir2*agreement, w2L);
-  int backward_gen = dir1*w1[pos_mod(w1_ind-1, w1L)];
+  int backward_gen = -dir1*w1[pos_mod(w1_ind-dir1, w1L)];
+  std::cout << "Returning cyclic order of " << backward_gen << ", " << dir1*w1[w1_ind] << " " << dir2*w2[w2_ind] <<"\n";
   return cyclically_ordered(backward_gen, dir1*w1[w1_ind], dir2*w2[w2_ind]);
 }
 
@@ -412,7 +444,7 @@ void LoopArrangement::init_from_vectors(Surface& S,
   }
   
   //count the gens and find where they are
-  positions_by_gen.resize(S.ngens+1);
+  positions_by_gen = std::vector<std::vector<GenPosition> >(S.ngens+1, std::vector<GenPosition>());
   GenPosition temp_gen_pos;
   temp_gen_pos.S = &S;
   for (int i=0; i<(int)W.size(); ++i) {
@@ -428,7 +460,6 @@ void LoopArrangement::init_from_vectors(Surface& S,
   generate_positions_by_letter();
   
 }
-
 
 void LoopArrangement::generate_positions_by_letter() {
   //make the positions vector the right size
@@ -470,20 +501,26 @@ bool sort_at_gen_positions(const GenPosition& gp1, const GenPosition& gp2) {
     return false;
   }
   int CO_forward = gp1.S->cyclically_ordered(w1, i1, w1s, w2, i2, w2s);
+  std::cout << "I found that the cyclic order on (" << w1 << "," << i1 << "," << w1s 
+            << ") (" << w2 << "," << i2 << "," << w2s << ") is " << CO_forward << "\n";
   if (CO_forward == 0) { 
     //this means the words are (cyclically) the same word
     //so we can sort them by saying that the word of lower 
     //index is lower in the order.  Or, if they are the same word, then 
     //the position of lower index is lower in the order 
+    std::cout << "Found a cyclic duplicate\n";
     if (gp1.w != gp2.w) return (gp1.w < gp2.w);
     return (i1 < i2);
   }
     
   int CO_backward = gp1.S->cyclically_ordered(w2, i2, -w2s, w1, i1, -w1s);
+  std::cout << "I found that the cyclic order on (" << w2 << "," << i2 << "," << -w2s 
+          << ") (" << w1 << "," << i1 << "," << -w1s << ") is " << CO_backward << "\n";
   if (CO_forward == CO_backward) {
     //(start, w1, w2), forward and (start, w2, w1) backward have the 
     //same sign; this means that the words are unlinked, so they just 
     //pull apart.  If it's positively ordered, the w1 comes before w2
+    std::cout << "These pull apart: returning " << (CO_forward > 0) << "\n";
     return (CO_forward > 0 ? true : false);
   }
   //the orders don't agree, so the words must cross; to determine the order, 
@@ -492,8 +529,10 @@ bool sort_at_gen_positions(const GenPosition& gp1, const GenPosition& gp2) {
   int backward_length = cyclic_word_agreement_length(w2, i1, -w2s, w1, i1, -w1s);
   if (forward_length > backward_length || forward_length == backward_length) {
     //so we'll use the order from the forward direction
+    std::cout << "They cross, and forward agreement is longer: " << (CO_forward > 0) << "\n";
     return (CO_forward > 0 ? true : false);
   } else {
+    std::cout << "They cross, and backward agreement is longer: " << (CO_backward > 0) << "\n";
     return (CO_backward > 0 ? true : false);
   }
 }
@@ -547,6 +586,9 @@ void LoopArrangement::minimal_position() {
   
   //reget the geodesics and everything, except force uniqueness
   init_from_vectors(*S, W, true);
+  
+  std::cout << "re-inited with unique geodesics:\n";
+  print(std::cout);
   
   //sort the gen positions; now this will be minimal position
   for (int i=1; i<=S->ngens; ++i) {
@@ -684,6 +726,15 @@ void LoopArrangement::print(std::ostream& os) {
   for (int i=0; i<(int)W.size(); ++i) {
     os << i << ": " << W[i] << "(" << W_words[i] << ")\n";
   }
+  std::cout << "Positions by gen:\n";
+  for (int i=1; i<S->ngens; ++i) {
+    std::cout << i << ": ";
+    for (int j=0; j<(int)positions_by_gen[i].size(); ++j) {
+      std::cout << "(" << positions_by_gen[i][j].w << "," << positions_by_gen[i][j].i << ") ";
+    }
+    std::cout << "\n";
+  }
+    
 }
   
   

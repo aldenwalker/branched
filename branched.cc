@@ -378,9 +378,10 @@ int main(int argc, char* argv[]) {
   std::cout << "Word: " << w << " geodesic: " << wg << "\n\n";
   
   Surface S3(3,0);
-  std::vector<std::string> W_words(2);
-  W_words[0] = std::string("abABc");
+  std::vector<std::string> W_words(3);
+  W_words[0] = std::string("efEFabbca");
   W_words[1] = std::string("ababaccdcdeaea");
+  W_words[2] = std::string("aBeDfcbaEd");
   LoopArrangement LA(S3, W_words);
   LA.find_all_crossings();
   std::cout << "After just initializing, " << LA.crossings.size() << " crossings:\n";
