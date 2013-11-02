@@ -55,6 +55,10 @@ int negate(int x) {
   return -x;
 }
 
+int max(int a, int b) {
+  return (a<b ? b : a);
+}
+
 std::string inverse(std::string& w) {
   std::string ans = w;
   std::reverse(ans.begin(), ans.end());
@@ -170,11 +174,12 @@ int cyclic_word_agreement_length(std::vector<int>& w1, int pos1,
   int ans = 0;
   int w1pos = pos1;
   int w2pos = pos2;
+  int max_len = max(w1L, w2L);
   while (w1[w1pos%w1L] == w2[w2pos%w2L]) {
     ++ans;
     ++w1pos;
     ++w2pos;
-    if (ans == w1L || ans == w2L) return ans;
+    if (ans == max_len) return ans;
   }
   return ans;
 }
@@ -359,6 +364,7 @@ int Surface::cyclically_ordered(std::vector<int>& w1, int start1, int dir1,
   int w1L = w1.size();
   int w2L = w2.size();
   int agreement = cyclic_word_agreement_length(w1, start1, dir1, w2, start2, dir2);
+  if (agreement == max(w1L, w2L)) return 0;
   int w1_ind = pos_mod(start1 + dir1*agreement, w1L);
   int w2_ind = pos_mod(start2 + dir2*agreement, w2L);
   int backward_gen = dir1*w1[pos_mod(w1_ind-1, w1L)];
@@ -465,8 +471,12 @@ bool sort_at_gen_positions(const GenPosition& gp1, const GenPosition& gp2) {
   }
   int CO_forward = gp1.S->cyclically_ordered(w1, i1, w1s, w2, i2, w2s);
   if (CO_forward == 0) { 
-    //this means the words are (cyclically) the same
-    //if 
+    //this means the words are (cyclically) the same word
+    //so we can sort them by saying that the word of lower 
+    //index is lower in the order.  Or, if they are the same word, then 
+    //the position of lower index is lower in the order 
+    if (gp1.w != gp2.w) return (gp1.w < gp2.w);
+    return (i1 < i2);
   }
     
   int CO_backward = gp1.S->cyclically_ordered(w2, i2, -w2s, w1, i1, -w1s);
