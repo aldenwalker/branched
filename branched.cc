@@ -353,48 +353,76 @@ Triangulation Triangulation::resolve_branched_surface() {
 }
 
 int main(int argc, char* argv[]) {
-  //Triangulation T;
-  //T.set_closed_surface(2);
-  //T.print(std::cout);
-  Surface S(2,0);
-  S.print(std::cout);
-  std::string w("aabABbBcdCDA");
-  std::string wg = S.geodesic(w);
-  std::cout << "Word: " << w << " geodesic: " << wg << "\n";
-  w = std::string("abABcababab");
-  wg = S.geodesic(w);
-  std::cout << "Word: " << w << " geodesic: " << wg << "\n";
-  w = std::string("dababbaBA");
-  wg = S.geodesic(w);
-  std::cout << "Word: " << w << " geodesic: " << wg << "\n\n";
+
+  if (argc < 2) {
   
-  Surface S2(3,2);
-  S2.print(std::cout);
-  w = std::string("abABcdCD");
-  wg = S2.geodesic(w);
-  std::cout << "Word: " << w << " geodesic: " << wg << "\n";
-  w = std::string("ddcDCbaBA");
-  wg = S2.geodesic(w);
-  std::cout << "Word: " << w << " geodesic: " << wg << "\n\n";
+    Surface S(2,0);
+    S.print(std::cout);
+    std::string w("aabABbBcdCDA");
+    std::string wg = S.geodesic(w);
+    std::cout << "Word: " << w << " geodesic: " << wg << "\n";
+    w = std::string("abABcababab");
+    wg = S.geodesic(w);
+    std::cout << "Word: " << w << " geodesic: " << wg << "\n";
+    w = std::string("dababbaBA");
+    wg = S.geodesic(w);
+    std::cout << "Word: " << w << " geodesic: " << wg << "\n\n";
   
-  Surface S3(3,0);
-  std::vector<std::string> W_words(3);
-  W_words[0] = std::string("efEFabbca");
-  W_words[1] = std::string("ababaccdcdeaea");
-  W_words[2] = std::string("aBeDfcbaEd");
-  LoopArrangement LA(S3, W_words);
-  LA.find_all_crossings();
-  std::cout << "After just initializing, " << LA.crossings.size() << " crossings:\n";
-  LA.print(std::cout);
-  LA.show();
+    Surface S2(3,2);
+    S2.print(std::cout);
+    w = std::string("abABcdCD");
+    wg = S2.geodesic(w);
+    std::cout << "Word: " << w << " geodesic: " << wg << "\n";
+    w = std::string("ddcDCbaBA");
+    wg = S2.geodesic(w);
+    std::cout << "Word: " << w << " geodesic: " << wg << "\n\n";
   
-  LA.minimal_position();
-  LA.find_all_crossings();
-  std::cout << "After minimizing, " << LA.crossings.size() << " crossings:\n";
-  LA.print(std::cout);
+    Surface S3(3,0);
+    std::vector<std::string> W_words(3);
+    W_words[0] = std::string("efEFabbca");
+    W_words[1] = std::string("ababaccdcdeaea");
+    W_words[2] = std::string("aBeDfcbaEd");
+    LoopArrangement LA(S3, W_words);
+    LA.find_all_crossings();
+    std::cout << "After just initializing, " << LA.crossings.size() << " crossings:\n";
+    LA.print(std::cout);
+    LA.show();
   
-  LA.show();
-  return 0;
+    LA.minimal_position();
+    LA.find_all_crossings();
+    std::cout << "After minimizing, " << LA.crossings.size() << " crossings:\n";
+    LA.print(std::cout);
+  
+    LA.show();
+    return 0;
+  
+  } else {
+    std::vector<std::string> words(0);
+    int genus, nboundaries;
+    if (argc < 4) {
+      std::cout << "usage: ./branched <genus> <nbounaries> <loops>\n";
+      return 0;
+    }
+    genus = atoi(argv[1]);
+    nboundaries = atoi(argv[2]);
+    for (int i=3; i<argc; ++i) {
+      words.push_back(std::string(argv[i]));
+    }
+    Surface S(genus, nboundaries);
+    LoopArrangement LA(S, words);
+    LA.find_all_crossings();
+    std::cout << "After just initializing, " << LA.crossings.size() << " crossings:\n";
+    LA.print(std::cout);
+    LA.show();
+  
+    LA.minimal_position();
+    LA.find_all_crossings();
+    std::cout << "After minimizing, " << LA.crossings.size() << " crossings:\n";
+    LA.print(std::cout);
+  
+    LA.show();
+    return 0;
+  }
 }
 
 

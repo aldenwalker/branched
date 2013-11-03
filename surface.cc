@@ -526,28 +526,76 @@ bool sort_at_gen_positions(const GenPosition& gp1, const GenPosition& gp2) {
   //the orders don't agree, so the words must cross; to determine the order, 
   //we'll put the crossing in the middle
   int forward_length = cyclic_word_agreement_length(w1, i1, w1s, w2, i2, w2s);
-  int backward_length = cyclic_word_agreement_length(w2, i1, -w2s, w1, i1, -w1s);
+  int backward_length = cyclic_word_agreement_length(w2, i2, -w2s, w1, i1, -w1s);
+  std::cout << "Forward length " << forward_length << " and backward length " << backward_length << "\n";
   if (forward_length > backward_length || forward_length == backward_length) {
     //so we'll use the order from the forward direction
     std::cout << "They cross, and forward agreement is longer: " << (CO_forward > 0) << "\n";
-    return (CO_forward > 0 ? true : false);
+    if (CO_forward > 0) {
+      std::cout << "So " << w1 << "," << i1 << " < " <<  w2 << "," << i2 <<"\n";
+    } else {
+      std::cout << "So " << w1 << "," << i1 << " < " <<  w2 << "," << i2 <<"\n";
+    }
+    return (CO_backward > 0 ? true : false);
   } else {
     std::cout << "They cross, and backward agreement is longer: " << (CO_backward > 0) << "\n";
-    return (CO_backward > 0 ? true : false);
+    return (CO_forward > 0 ? true : false);
   }
 }
 
 
 
+int LoopArrangement::cyclically_ordered_positions(int gen1, int pos1, 
+                                                  int gen2, int pos2,
+                                                  int gen3, int pos3) {
+  if (gen2 == gen3) {
+    if (gen1 == gen2) {
+      int preorder = ((pos1 < pos2 and pos2 < pos3) ? 1 : -1);
+      return sgn(gen1)*preorder;
+    }
+    int preorder = ((pos2 < pos3) ? 1 : -1);
+    return sgn(gen2)*preorder;
+  }
+  if (gen1 == gen2) {
+    int preorder = ((pos1 < pos2) ? 1 : -1);
+    return sgn(gen1)*preorder;
+  }
+  if (gen1 == gen3) {
+    int preorder = ((pos1 > pos3) ? 1 : -1);
+    return sgn(gen1)*preorder;
+  }
+  return S->cyclically_ordered(gen1, gen2, gen3);
+}
+
 
 
 bool LoopArrangement::check_cross(int w1, int i1, int w2, int i2) {
-  return false;
+  int w1L = W[w1].size();
+  int w2L = W[w2].size();
+  int i1p1 = (i1+1)%w1L;
+  int i2p1 = (i2+1)%w2L;
+  int ord1 = cyclically_ordered_positions(-W[w1][i1], positions_by_letter[w1][i1],
+                                          -W[w2][i2], positions_by_letter[w2][i2],
+                                           W[w2][i2p1], positions_by_letter[w2][i2p1]);
+  int ord2 = cyclically_ordered_positions(W[w1][i1p1], positions_by_letter[w1][i1p1],
+                                          -W[w2][i2], positions_by_letter[w2][i2],
+                                          W[w2][i2p1], positions_by_letter[w2][i2p1]);
+  std::cout << "Checking whether " << W[w1] << "," << i1 << " and " << W[w2] << "," << i2 << " cross\n";
+  std::cout << "Checking cyclic order of: (" << -W[w1][i1] << "," << positions_by_letter[w1][i1] 
+                                        << "),(" << -W[w2][i2] << "," << positions_by_letter[w2][i2]
+                                        << "),(" << W[w2][i2p1] << "," << positions_by_letter[w2][i2p1] << ")\n";
+  std::cout << "Got cyclic order " << ord1 << "\n";
+  std::cout << "Checking cyclic order of: (" << W[w1][i1p1] << "," << positions_by_letter[w1][i1p1] 
+                                        << "),(" << -W[w2][i2] << "," << positions_by_letter[w2][i2]
+                                        << "),(" << W[w2][i2p1] << "," << positions_by_letter[w2][i2p1] << ")\n";
+  std::cout << "Got cyclic order " << ord2 << "\n";
+  return (ord1 != ord2);
 }
 
 
 
 void LoopArrangement::find_all_crossings() {
+  crossings.resize(0);
   //for every pair of segments, check if they intersect
   for (int i=0; i<(int)W.size(); ++i) {
     Crossing temp_c;
@@ -556,11 +604,14 @@ void LoopArrangement::find_all_crossings() {
     temp_c.w1 = i;
     for (int j=0; j<(int)W[i].size(); ++j) {
       temp_c.i1 = j;
-      
-      for (int k=0; k<(int)W.size(); ++k) {
+      for (int k=i; k<(int)W.size(); ++k) {
         temp_c.w2 = k;
-        for (int m=0; m<(int)W[k].size(); ++m) {
+        for (int m=(k==i ? j+1 : 0); m<(int)W[k].size(); ++m) {
           if (k==i && m==j) continue;
+          if (check_cross(i, j, k, m)) {
+            temp_c.i2 = m;
+            crossings.push_back(temp_c);
+          }
         }
       }
     }

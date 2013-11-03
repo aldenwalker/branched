@@ -98,6 +98,11 @@ struct LoopArrangement {
   //given the positions along the gen edges, get the position for each letter
   void generate_positions_by_letter();
   
+  //check the cyclic order of three positions
+  int cyclically_ordered_positions(int gen1, int pos1, 
+                                   int gen2, int pos2,
+                                   int gen3, int pos3);
+  
   //check if two strands cross at the given location
   bool check_cross(int w1, int i1, int w2, int i2);
   
