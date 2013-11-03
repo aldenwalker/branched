@@ -5,6 +5,9 @@
 #include "surface.h"
 #include "graphics.h"
 
+/****************************************************************************
+ * Everything is a vector, so it is handy to write it out
+ ****************************************************************************/
 std::ostream& operator<<(std::ostream& os, std::vector<int>& L) {
   if (L.size() == 0) return os;
   os << "[" << L[0];
@@ -15,6 +18,10 @@ std::ostream& operator<<(std::ostream& os, std::vector<int>& L) {
   return os;
 }
 
+/*****************************************************************************
+ * These functions translate between character generators a,b,c... 
+ * and integers 1,2,3,..
+ *****************************************************************************/
 char alpha_ind_to_letter(SignedInd ind) {
   if (ind > 0) {
     return (char)((ind-1)+97);
@@ -45,6 +52,10 @@ std::vector<int> vector_from_word(std::string& w) {
   return ans;
 }
 
+/****************************************************************************
+ * These are some handy string functions
+ * They are duplicated for int vectors, which represent all our words
+ ****************************************************************************/
 char swap_case(char c) {
   if (std::isupper(c)) return std::tolower(c);
   else if (std::islower(c)) return std::toupper(c);
@@ -151,8 +162,11 @@ std::vector<int> cyclic_subword(std::vector<int>& w, int pos, int len) {
   return ans;
 }
   
-
-int cyclic_word_agreement_length(std::string w1, int pos1, std::string w2, int pos2) {
+/*****************************************************************************
+ * These functions record how long the cyclic words agree at the given spot
+ *****************************************************************************/
+int cyclic_word_agreement_length(std::string w1, int pos1, 
+                                 std::string w2, int pos2) {
   int w1L = w1.size();
   int w2L = w2.size();
   int ans = 0;
@@ -184,6 +198,10 @@ int cyclic_word_agreement_length(std::vector<int>& w1, int pos1,
   return ans;
 }
 
+/*****************************************************************************
+ * This function is similar, but it also takes a direction, which says 
+ * which way to go.  Note that gens get negated as we go backwards
+ *****************************************************************************/
 int cyclic_word_agreement_length(std::vector<int>& w1, int pos1, int dir1, 
                                  std::vector<int>& w2, int pos2, int dir2) {
   int w1L = w1.size();
@@ -201,10 +219,14 @@ int cyclic_word_agreement_length(std::vector<int>& w1, int pos1, int dir1,
   return ans;
 }
 
-Surface::Surface(int g, int nb) {
+/*****************************************************************************
+ * Construct a surface with the default polygon so the relator is [a,b][c,d]...
+ *****************************************************************************/
+Surface::Surface(int g, int nb, int verbose) {
   genus = g;
   nboundaries = nb;
   ngens = 2*g + nb;
+  this->verbose = verbose;
   cyclic_order.resize(0);;
   relator.resize(0);;
   //go around the normal closed surface part
@@ -239,9 +261,12 @@ Surface::Surface(int g, int nb) {
   }
 }
   
-  
+/*****************************************************************************
+ * Print out a surface
+ *****************************************************************************/
 void Surface::print(std::ostream& os) {
-  os << "Surface of genus " << genus << " with " << nboundaries << " boundary components\n";
+  os << "Surface of genus " << genus << " with " 
+                            << nboundaries << " boundary components\n";
   os << "Cyclic order action on polygon: " << cyclic_order << "\n";
   os << "Relator: " << relator << "(" << word_from_vector(relator) << ")\n";
   os << "Relator inverse: " << relator_inverse << "(" << word_from_vector(relator_inverse) << ")\n";
@@ -273,7 +298,12 @@ void Surface::print(std::ostream& os) {
   os << "\n";
 }
 
-
+/*****************************************************************************
+ * Given a spot and length, this replaces the string using the relator, 
+ * usually to make it shorter.  This uses the fact that each relator contains 
+ * every letter at most once, and it assumes that the input is sensical 
+ * (actually a substring of the relator)
+ *****************************************************************************/
 void Surface::apply_relator(std::vector<int>& w, int pos, int len, bool inv) {
   int wL = w.size();
   //get the position in the relator of the letter at pos+len
@@ -281,16 +311,18 @@ void Surface::apply_relator(std::vector<int>& w, int pos, int len, bool inv) {
                   ? relator_inverse_map[ w[(pos+len-1)%wL] ]
                   : relator_map[ w[(pos+len-1)%wL] ] );
   rel_pos = (rel_pos+1)%relator.size();
-  //std::cout << "Replacing subword of length " << len << " at pos " << pos << "\n";
-  //std::cout << "Got relator position " << rel_pos << "\n";
   //get the cyclic subword of relator starting at rel_pos of 
   //length relator_length - len
   std::vector<int> new_relator_chunk = cyclic_subword( (inv ? relator_inverse : relator), 
                                                         rel_pos, 
                                                         relator.size()-len);
-  std::cout << "Got the new relator chunk " << new_relator_chunk << "\n";
   new_relator_chunk = inverse(new_relator_chunk);
-  std::cout << "Took the inverse " << new_relator_chunk << "\n";
+  if (verbose > 1) {
+    std::cout << "Applying the relator to " << w << "\n";
+    std::cout << "Replacing subword of length " << len << " at pos " << pos << "\n";
+    std::cout << "Got relator position " << rel_pos << "\n";
+    std::cout << "Got the bit to insert: " << new_relator_chunk << "\n";
+  }
   //if the w subword wraps around, just remove it and tack 
   //on the new chunk at the end, otherwise, replace in the middle
   if (pos + len > wL) {
@@ -304,20 +336,27 @@ void Surface::apply_relator(std::vector<int>& w, int pos, int len, bool inv) {
 }
 
 
-
+/****************************************************************************
+ * return a new string which is a geodesic rep of w
+ ****************************************************************************/
 std::string Surface::geodesic(std::string& w) {
   std::vector<int> wv = vector_from_word(w);
   make_geodesic(wv);
   return word_from_vector(wv);
 }
 
+/*****************************************************************************
+ * turn a string (vector) into a geodesic.  If unique_geodesics=true, then 
+ * it'll make an arbitrary choice about any ambiguity with an even-length
+ * relator
+ *****************************************************************************/
 void Surface::make_geodesic(std::vector<int>& w, bool unique_geodesics) {
   //we scan the cyclic word w looking for segments in 
   //common with the relator or relator inverse
   //if all these segments have length <= 1/2 the relator length, 
   //then it's geodesic
   cyclically_reduce(w);
-  std::cout << "Geodesicifying " << w << "\n";
+  if (verbose > 1) std::cout << "Geodesicifying " << w << "\n";
   
   //get the lengths we can shorten and stuff
   bool do_unique_reduction = (relator.size()%2 == 0 && unique_geodesics);
@@ -328,17 +367,19 @@ void Surface::make_geodesic(std::vector<int>& w, bool unique_geodesics) {
   if (do_unique_reduction) {
     places_to_shorten.resize(relator.size());
     places_to_shorten_inverse.resize(relator.size());
-    std::cout << "Doing unique reduction\n";
+    if (verbose > 1) std::cout << "Doing unique reduction\n";
     for (int i=0; i<(int)relator.size(); ++i) {
       int im1 = (i==0 ? relator.size()-1 : i-1);
       places_to_shorten[i] = (relator[i] > -relator[im1]);
       places_to_shorten_inverse[i] = (relator_inverse[i] > -relator_inverse[im1]);
     }
-    std::cout << "Places to shorten relator: \n";
-    for (int i=0; i<(int)relator.size(); ++i) {
-      std::cout << i << ":" << places_to_shorten[i] << " ";
+    if (verbose>2) {
+      std::cout << "Places to shorten relator: \n";
+      for (int i=0; i<(int)relator.size(); ++i) {
+        std::cout << i << ":" << places_to_shorten[i] << " ";
+      }
+      std::cout << "\n";
     }
-    std::cout << "\n";
   }
   
   while (true) {
@@ -355,18 +396,18 @@ void Surface::make_geodesic(std::vector<int>& w, bool unique_geodesics) {
           || (do_unique_reduction 
               && r_agree_length == half_length 
               && places_to_shorten[r_position])) {
-        std::cout << "Found agreement of length " << r_agree_length << " at pos " << i << "\n";
+        if (verbose > 2) std::cout << "Found agreement of length " << r_agree_length << " at pos " << i << "\n";
         apply_relator(w, i, r_agree_length);
-        std::cout << "After replacing: " << w << "\n";
+        if (verbose > 2) std::cout << "After replacing: " << w << "\n";
         did_something = true;
         break;
       } else if (R_agree_length >= too_long_length
                  || (do_unique_reduction 
                       && R_agree_length == half_length 
                       && places_to_shorten_inverse[R_position])) {
-        std::cout << "Found inverse agreement of length " << R_agree_length << " at pos " << i << "\n";
+        if (verbose > 2) std::cout << "Found inverse agreement of length " << R_agree_length << " at pos " << i << "\n";
         apply_relator(w, i, R_agree_length, true);
-        std::cout << "After replacing: " << w << "\n";
+        if (verbose > 2) std::cout << "After replacing: " << w << "\n";
         did_something = true;
         break;
       }
@@ -393,13 +434,14 @@ int Surface::cyclically_ordered(std::vector<int>& w1, int start1, int dir1,
   int w1L = w1.size();
   int w2L = w2.size();
   int agreement = cyclic_word_agreement_length(w1, start1, dir1, w2, start2, dir2);
+  if (verbose > 2) 
   std::cout << "I found that the agreement  of (" << w1 << "," << start1 << "," << dir1 
             << ") (" << w2 << "," << start2 << "," << dir2 << ") is " << agreement << "\n";
   if (agreement == max(w1L, w2L)) return 0;
   int w1_ind = pos_mod(start1 + dir1*agreement, w1L);
   int w2_ind = pos_mod(start2 + dir2*agreement, w2L);
   int backward_gen = -dir1*w1[pos_mod(w1_ind-dir1, w1L)];
-  std::cout << "Returning cyclic order of " << backward_gen << ", " << dir1*w1[w1_ind] << " " << dir2*w2[w2_ind] <<"\n";
+  if (verbose > 2) std::cout << "Returning cyclic order of " << backward_gen << ", " << dir1*w1[w1_ind] << " " << dir2*w2[w2_ind] <<"\n";
   return cyclically_ordered(backward_gen, dir1*w1[w1_ind], dir2*w2[w2_ind]);
 }
 
@@ -409,16 +451,18 @@ int Surface::cyclically_ordered(std::vector<int>& w1, int start1, int dir1,
 
 
 
-LoopArrangement::LoopArrangement(Surface& S) {
+LoopArrangement::LoopArrangement(Surface& S, int verbose) {
   W_words.resize(0);
   W.resize(0);
   this->S = &S;
   positions_by_letter.resize(0);
   positions_by_gen.resize(0);
+  this->verbose = verbose;
 }
 
-LoopArrangement::LoopArrangement(Surface& S, std::vector<std::string>& W_words) {
+LoopArrangement::LoopArrangement(Surface& S, std::vector<std::string>& W_words, int verbose) {
   std::vector<std::vector<int> > W_in(W_words.size());
+  this->verbose = verbose;
   for (int i=0; i<(int)W_in.size(); ++i) {
     W_in[i] = vector_from_word(W_words[i]);
   }
@@ -426,7 +470,8 @@ LoopArrangement::LoopArrangement(Surface& S, std::vector<std::string>& W_words) 
 }  
   
  
-LoopArrangement::LoopArrangement(Surface& S, std::vector<std::vector<int> >& W_in) {
+LoopArrangement::LoopArrangement(Surface& S, std::vector<std::vector<int> >& W_in, int verbose) {
+  this->verbose = verbose;
   init_from_vectors(S, W_in);
 }
   
@@ -495,50 +540,53 @@ bool sort_at_gen_positions(const GenPosition& gp1, const GenPosition& gp2) {
   int i2 = gp2.i;
   int w1s = sgn(w1[i1]);
   int w2s = sgn(w2[i2]);
+  int verbose = gp1.S->verbose;
   //sanity check
   if (w1s * w1[i1] != w2s * w2[i2]) {
     std::cout << "You're trying to sort based at two different letters\n";
     return false;
   }
   int CO_forward = gp1.S->cyclically_ordered(w1, i1, w1s, w2, i2, w2s);
-  std::cout << "I found that the cyclic order on (" << w1 << "," << i1 << "," << w1s 
+  if (verbose > 2) 
+    std::cout << "I found that the cyclic order on (" << w1 << "," << i1 << "," << w1s 
             << ") (" << w2 << "," << i2 << "," << w2s << ") is " << CO_forward << "\n";
   if (CO_forward == 0) { 
     //this means the words are (cyclically) the same word
     //so we can sort them by saying that the word of lower 
     //index is lower in the order.  Or, if they are the same word, then 
     //the position of lower index is lower in the order 
-    std::cout << "Found a cyclic duplicate\n";
-    if (gp1.w != gp2.w) return (gp1.w < gp2.w);
-    return (i1 < i2);
+    if (verbose > 2) std::cout << "Found a cyclic duplicate\n";
+    
+    if (gp1.w != gp2.w) { 
+      if (verbose > 2) std::cout << "Words are different, so I'm returning " << (w1s == 1 ? (gp1.w < gp2.w) : !(gp1.w < gp2.w)) << "\n";
+      return (w1s == 1 ? (gp1.w < gp2.w) : !(gp1.w < gp2.w));
+    }
+    if (verbose > 2) std::cout << "Words are the same, so returning " << (w1s == 1 ? (i1 < i2) : !(i1 < i2)) << "\n";
+    return (w1s == 1 ? (i1 < i2) : !(i1 < i2));
   }
     
   int CO_backward = gp1.S->cyclically_ordered(w2, i2, -w2s, w1, i1, -w1s);
-  std::cout << "I found that the cyclic order on (" << w2 << "," << i2 << "," << -w2s 
+  if (verbose > 2) 
+    std::cout << "I found that the cyclic order on (" << w2 << "," << i2 << "," << -w2s 
           << ") (" << w1 << "," << i1 << "," << -w1s << ") is " << CO_backward << "\n";
   if (CO_forward == CO_backward) {
     //(start, w1, w2), forward and (start, w2, w1) backward have the 
     //same sign; this means that the words are unlinked, so they just 
     //pull apart.  If it's positively ordered, the w1 comes before w2
-    std::cout << "These pull apart: returning " << (CO_forward > 0) << "\n";
+    if (verbose > 2) std::cout << "These pull apart: returning " << (CO_forward > 0) << "\n";
     return (CO_forward > 0 ? true : false);
   }
   //the orders don't agree, so the words must cross; to determine the order, 
   //we'll put the crossing in the middle
   int forward_length = cyclic_word_agreement_length(w1, i1, w1s, w2, i2, w2s);
   int backward_length = cyclic_word_agreement_length(w2, i2, -w2s, w1, i1, -w1s);
-  std::cout << "Forward length " << forward_length << " and backward length " << backward_length << "\n";
+  if (verbose > 2) std::cout << "Forward length " << forward_length << " and backward length " << backward_length << "\n";
   if (forward_length > backward_length || forward_length == backward_length) {
     //so we'll use the order from the forward direction
-    std::cout << "They cross, and forward agreement is longer: " << (CO_forward > 0) << "\n";
-    if (CO_forward > 0) {
-      std::cout << "So " << w1 << "," << i1 << " < " <<  w2 << "," << i2 <<"\n";
-    } else {
-      std::cout << "So " << w1 << "," << i1 << " < " <<  w2 << "," << i2 <<"\n";
-    }
+    if (verbose > 2) std::cout << "They cross, and forward agreement is longer: " << (CO_forward > 0) << "\n";
     return (CO_backward > 0 ? true : false);
   } else {
-    std::cout << "They cross, and backward agreement is longer: " << (CO_backward > 0) << "\n";
+    if (verbose > 2) std::cout << "They cross, and backward agreement is longer: " << (CO_backward > 0) << "\n";
     return (CO_forward > 0 ? true : false);
   }
 }
@@ -580,15 +628,17 @@ bool LoopArrangement::check_cross(int w1, int i1, int w2, int i2) {
   int ord2 = cyclically_ordered_positions(W[w1][i1p1], positions_by_letter[w1][i1p1],
                                           -W[w2][i2], positions_by_letter[w2][i2],
                                           W[w2][i2p1], positions_by_letter[w2][i2p1]);
-  std::cout << "Checking whether " << W[w1] << "," << i1 << " and " << W[w2] << "," << i2 << " cross\n";
-  std::cout << "Checking cyclic order of: (" << -W[w1][i1] << "," << positions_by_letter[w1][i1] 
-                                        << "),(" << -W[w2][i2] << "," << positions_by_letter[w2][i2]
-                                        << "),(" << W[w2][i2p1] << "," << positions_by_letter[w2][i2p1] << ")\n";
-  std::cout << "Got cyclic order " << ord1 << "\n";
-  std::cout << "Checking cyclic order of: (" << W[w1][i1p1] << "," << positions_by_letter[w1][i1p1] 
-                                        << "),(" << -W[w2][i2] << "," << positions_by_letter[w2][i2]
-                                        << "),(" << W[w2][i2p1] << "," << positions_by_letter[w2][i2p1] << ")\n";
-  std::cout << "Got cyclic order " << ord2 << "\n";
+  if (verbose > 2) {
+    std::cout << "Checking whether " << W[w1] << "," << i1 << " and " << W[w2] << "," << i2 << " cross\n";
+    std::cout << "Checking cyclic order of: (" << -W[w1][i1] << "," << positions_by_letter[w1][i1] 
+                                          << "),(" << -W[w2][i2] << "," << positions_by_letter[w2][i2]
+                                          << "),(" << W[w2][i2p1] << "," << positions_by_letter[w2][i2p1] << ")\n";
+    std::cout << "Got cyclic order " << ord1 << "\n";
+    std::cout << "Checking cyclic order of: (" << W[w1][i1p1] << "," << positions_by_letter[w1][i1p1] 
+                                          << "),(" << -W[w2][i2] << "," << positions_by_letter[w2][i2]
+                                          << "),(" << W[w2][i2p1] << "," << positions_by_letter[w2][i2p1] << ")\n";
+    std::cout << "Got cyclic order " << ord2 << "\n";
+  }
   return (ord1 != ord2);
 }
 
@@ -638,8 +688,10 @@ void LoopArrangement::minimal_position() {
   //reget the geodesics and everything, except force uniqueness
   init_from_vectors(*S, W, true);
   
-  std::cout << "re-inited with unique geodesics:\n";
-  print(std::cout);
+  if (verbose > 2) {
+    std::cout << "re-inited with unique geodesics:\n";
+    print(std::cout);
+  }
   
   //sort the gen positions; now this will be minimal position
   for (int i=1; i<=S->ngens; ++i) {
@@ -778,7 +830,7 @@ void LoopArrangement::print(std::ostream& os) {
     os << i << ": " << W[i] << "(" << W_words[i] << ")\n";
   }
   std::cout << "Positions by gen:\n";
-  for (int i=1; i<S->ngens; ++i) {
+  for (int i=1; i<=S->ngens; ++i) {
     std::cout << i << ": ";
     for (int j=0; j<(int)positions_by_gen[i].size(); ++j) {
       std::cout << "(" << positions_by_gen[i][j].w << "," << positions_by_gen[i][j].i << ") ";

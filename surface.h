@@ -14,10 +14,16 @@ struct Crossing;
 
 struct GenPosition; 
 
+
+/****************************************************************************
+ * Surface class
+ * mostly records the cyclic order of things, and geodesicifying
+ ****************************************************************************/
 struct Surface {
   int genus;
   int nboundaries;
   int ngens;
+  int verbose;
   std::vector<int> cyclic_order;
   std::map<int, int> cyclic_order_map;
   std::vector<int> relator;
@@ -27,7 +33,7 @@ struct Surface {
   
   //use the default string aBAbcDCd...fFgGhH...
   //The weird order is so that the relator is [a,b][c,d]...fgh...
-  Surface(int g, int nb); 
+  Surface(int g, int nb, int verbose=1); 
   
   //print out all the data
   void print(std::ostream& os);
@@ -35,7 +41,8 @@ struct Surface {
   //apply a relator at a position in a word (cyclically)
   //(replace xyz with xy'z where y(y'^-1) = relator, and y has length len
   //if inverse==true, it'll use the relator inverse instead
-  //this ASSUMES that the subword at pos of length len is a subword of relator/inverse !!!
+  //this ASSUMES that the subword at pos of length len is a subword 
+  //of relator/inverse !!!
   void apply_relator(std::vector<int>& w, int pos, int len, bool inv=false);
   
   //reduce a word into a combinatorial geodesic (a string)
@@ -45,7 +52,8 @@ struct Surface {
   //this is unique if you ask for it
   void make_geodesic(std::vector<int>& w, bool unique_geodesics=false);
   
-  //returns +/-1 depending on whether the gen list x,y,z is positively cyclically ordered
+  //returns +/-1 depending on whether the gen list x,y,z is 
+  //positively cyclically ordered
   int cyclically_ordered(SignedInd x, SignedInd y, SignedInd z);
   
   //returns +/-1 depending on how the words diverge
@@ -56,6 +64,7 @@ struct Surface {
   
 };
 
+
 //this helps with arranging the geodesics
 struct GenPosition {
   Surface* S;             //the surface we're working in
@@ -64,33 +73,24 @@ struct GenPosition {
   int i;                  //letter index
 };
 
-//this too
-//this is the same information as a crossing obviously, but whatever
-//it's just for sorting the stuff
-// struct GenPositionPair {
-//   int w1, i1, w2, i2;
-//   bool operator<(const GenPositionPair& other) {
-//     if (w1 != other.w1) return (w1 < other.w1);
-//     if (w2 != other.w2) return (w2 < other.w2);
-//     if (i1 != other.i1) return (i1 < other.i1);
-//     if (i2 != other.i2) return (i2 < other.i2);
-//     return true;
-//   }
-// };
 
-//this allows us to package a loop arrangement
+/****************************************************************************
+ * A LoopArrangement is a collection of homotopy classes
+ * this is what handles finding the minimal position, etc
+ ****************************************************************************/
 struct LoopArrangement {
   Surface* S;
   std::vector<std::string> W_words;
   std::vector<std::vector<int> > W;
   std::vector<std::vector<int> > positions_by_letter;
   std::vector<std::vector<GenPosition> > positions_by_gen;
+  int verbose;
   
   std::vector<Crossing> crossings;
   
-  LoopArrangement(Surface& S);
-  LoopArrangement(Surface& S, std::vector<std::string>& W_words);
-  LoopArrangement(Surface& S, std::vector<std::vector<int> >& W);
+  LoopArrangement(Surface& S, int verbose=1);
+  LoopArrangement(Surface& S, std::vector<std::string>& W_words, int verbose=1);
+  LoopArrangement(Surface& S, std::vector<std::vector<int> >& W, int verbose=1);
   void init_from_vectors(Surface& S, 
                         std::vector<std::vector<int> >& W,
                         bool unique_geodesics=false);
