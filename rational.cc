@@ -289,7 +289,7 @@ Rational cont_frac_value(vector<int> a) {
   return answer;
 }
 
-Rational approx_rat(double b) {
+Rational approx_rat(double b, double tol) {
   double a;
   vector<int> As(0);
   a = b;
@@ -298,7 +298,7 @@ Rational approx_rat(double b) {
   //cout << "Floor: " << (int)floor(a) << "\n";
   double currentRem = a - (double)As[As.size()-1];
   Rational currentR = Rational(As[0], 1);
-  while (fabs(currentR.get_d() - a) > 0.00000001) {
+  while (fabs(currentR.get_d() - a) > tol) {
     //cout << "last conv element: " << As[As.size()-1] << " and current Rem: "<< currentRem << "\n";
     As.push_back((int)floor(1.0/currentRem));
     currentRem = (1.0/currentRem) - (double)As[As.size()-1];
