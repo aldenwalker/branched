@@ -1,8 +1,8 @@
 CC=g++
 CFLAGS=-Wall -g
 GFLAGS=-I/usr/X11R6/include
-IFLAGS=
-LFLAGS=-L/usr/X11R6/lib -lX11
+IFLAGS=-I/sw/include
+LFLAGS=-L/usr/X11R6/lib -lX11 -L/sw/lib -lgmp
 
 all: branched
 
@@ -15,8 +15,11 @@ surface.o : surface.cc
 graphics.o : graphics.cc
 	$(CC) $(CFLAGS) $(IFLAGS) -c graphics.cc
 
-branched : branched.o surface.o graphics.o
-	$(CC) -o branched branched.o surface.o graphics.o $(LFLAGS)
+rational.o : rational.cc
+	$(CC) $(CFLAGS) $(IFLAGS) -c rational.cc
+
+branched : branched.o surface.o graphics.o rational.o
+	$(CC) -o branched branched.o surface.o graphics.o rational.o $(LFLAGS)
 
 clean : 
 	rm *.o

@@ -6,6 +6,8 @@
 #include <iostream>
 #include <map>
 
+#include "point.h"
+#include "rational.h"
 #include "branched.h"
 
 struct LoopArrangement;
@@ -30,6 +32,11 @@ struct Surface {
   std::vector<int> relator_inverse;
   std::map<int, int> relator_map;
   std::map<int, int> relator_inverse_map;
+  
+  //these record the points of the polygon
+  //note these are close rational approximations of roots of unity
+  std::map<int, Point2d<Rational> > gen_edge_start; 
+  std::map<int, Point2d<Rational> > gen_edge_end;
   
   //use the default string aBAbcDCd...fFgGhH...
   //The weird order is so that the relator is [a,b][c,d]...fgh...
@@ -87,6 +94,9 @@ struct LoopArrangement {
   int verbose;
   
   std::vector<Crossing> crossings;
+  
+  
+  
   
   LoopArrangement(Surface& S, int verbose=1);
   LoopArrangement(Surface& S, std::vector<std::string>& W_words, int verbose=1);

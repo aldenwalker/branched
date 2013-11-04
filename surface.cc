@@ -259,6 +259,25 @@ Surface::Surface(int g, int nb, int verbose) {
     relator_map[ relator[i] ] = i;
     relator_inverse_map[ relator_inverse[i] ] = i;
   }
+  
+  /*
+  //create the polygon rational positions
+  Point2d<float> prev_point(1,0);
+  Point2d<float> current_point;
+  float PI = 3.1415926535;
+  float current_angle = 0;
+  float angle_step = (2*PI)/cyclic_order.size();
+  for (int i=0; i<(int)cyclic_order.size(); ++i) {
+    current_angle += angle_step;
+    current_point = Point2d<float>(cos(current_angle), sin(current_angle));
+    int gen = cyclic_order[i];
+    //int num_crossing_gen = positions_by_gen[abs(gen)].size();
+    //gen_edge_start[gen] = prev_point;
+    //gen_edge_end[gen] = current_point;
+    //gen_edge_step[gen] = (float)(1.0/(num_crossing_gen+1)) * (current_point-prev_point);
+    prev_point = current_point;
+  }
+  */
 }
   
 /*****************************************************************************
@@ -390,8 +409,14 @@ void Surface::make_geodesic(std::vector<int>& w, bool unique_geodesics) {
       //starting at this position
       int r_position = relator_map[w[i]];
       int R_position = relator_inverse_map[w[i]];
-      int r_agree_length = cyclic_word_agreement_length(w, i, relator, r_position);
-      int R_agree_length = cyclic_word_agreement_length(w, i, relator_inverse, R_position);
+      int r_agree_length = cyclic_word_agreement_length(w, 
+                                                        i, 
+                                                        relator, 
+                                                        r_position);
+      int R_agree_length = cyclic_word_agreement_length(w, 
+                                                        i, 
+                                                        relator_inverse, 
+                                                        R_position);
       if (r_agree_length >= too_long_length
           || (do_unique_reduction 
               && r_agree_length == half_length 
@@ -416,6 +441,9 @@ void Surface::make_geodesic(std::vector<int>& w, bool unique_geodesics) {
   }
 }
 
+/*****************************************************************************
+ * Just check the cyclic order
+ *****************************************************************************/
 int Surface::cyclically_ordered(SignedInd x, SignedInd y, SignedInd z) {
   int xpos = cyclic_order_map[x];
   int ypos = cyclic_order_map[y];
@@ -425,6 +453,11 @@ int Surface::cyclically_ordered(SignedInd x, SignedInd y, SignedInd z) {
   return ( xpos < ypos ? 1 : -1 );;
 }
   
+/*****************************************************************************
+ * determine the cyclic order of two words which agree at the starting 
+ * locations, so the cyclic order is well-defined.  The words can 
+ * be read in either direction determined by dir1 and dir2
+ *****************************************************************************/
 int Surface::cyclically_ordered(std::vector<int>& w1, int start1, int dir1,
                                 std::vector<int>& w2, int start2, int dir2) {
   if (dir1*w1[start1] != dir2*w2[start2]) {
@@ -446,11 +479,9 @@ int Surface::cyclically_ordered(std::vector<int>& w1, int start1, int dir1,
 }
 
 
-
-
-
-
-
+/*****************************************************************************
+ * construct an empty loop arrangement
+ *****************************************************************************/
 LoopArrangement::LoopArrangement(Surface& S, int verbose) {
   W_words.resize(0);
   W.resize(0);
@@ -460,7 +491,12 @@ LoopArrangement::LoopArrangement(Surface& S, int verbose) {
   this->verbose = verbose;
 }
 
-LoopArrangement::LoopArrangement(Surface& S, std::vector<std::string>& W_words, int verbose) {
+/*****************************************************************************
+ * Construct a loop arrangement from a list of words
+ *****************************************************************************/
+LoopArrangement::LoopArrangement(Surface& S, 
+                                 std::vector<std::string>& W_words, 
+                                 int verbose) {
   std::vector<std::vector<int> > W_in(W_words.size());
   this->verbose = verbose;
   for (int i=0; i<(int)W_in.size(); ++i) {
@@ -469,12 +505,19 @@ LoopArrangement::LoopArrangement(Surface& S, std::vector<std::string>& W_words, 
   init_from_vectors(S, W_in);
 }  
   
- 
-LoopArrangement::LoopArrangement(Surface& S, std::vector<std::vector<int> >& W_in, int verbose) {
+/*****************************************************************************
+ * construct a list arrangement from a list of vector words 
+ *****************************************************************************/
+LoopArrangement::LoopArrangement(Surface& S, 
+                                 std::vector<std::vector<int> >& W_in, 
+                                 int verbose) {
   this->verbose = verbose;
   init_from_vectors(S, W_in);
 }
   
+/*****************************************************************************
+ * this is what does the actual initialization
+ *****************************************************************************/
 void LoopArrangement::init_from_vectors(Surface& S, 
                                         std::vector<std::vector<int> >& W_in,
                                         bool unique_geodesics)  {
@@ -506,6 +549,10 @@ void LoopArrangement::init_from_vectors(Surface& S,
   
 }
 
+/*****************************************************************************
+ * the positions of the loop as they pass by the generators are listed by 
+ * generator; this scans through and produces a new list indexed by letter
+ *****************************************************************************/
 void LoopArrangement::generate_positions_by_letter() {
   //make the positions vector the right size
   positions_by_letter.resize(W.size());
@@ -523,9 +570,11 @@ void LoopArrangement::generate_positions_by_letter() {
 
 
 
-
-
-
+/*****************************************************************************
+ * Given two positions on two loops, say which one should be 
+ * "less" in the order of the edge; this is what positions all the 
+ * loops to eliminate bigons
+ *****************************************************************************/
 bool sort_at_gen_positions(const GenPosition& gp1, const GenPosition& gp2) {
   //scan left and right to determine the cyclic order
   //this does NOT take into account anything with the relator
@@ -592,7 +641,10 @@ bool sort_at_gen_positions(const GenPosition& gp1, const GenPosition& gp2) {
 }
 
 
-
+/*****************************************************************************
+ * Since there are multiple positions per generator, checking whether 
+ * three loop-segment-ends are positively cyclically ordered is trickier
+ *****************************************************************************/
 int LoopArrangement::cyclically_ordered_positions(int gen1, int pos1, 
                                                   int gen2, int pos2,
                                                   int gen3, int pos3) {
@@ -616,7 +668,9 @@ int LoopArrangement::cyclically_ordered_positions(int gen1, int pos1,
 }
 
 
-
+/*****************************************************************************
+ * Check whether two loop segments cross
+ *****************************************************************************/
 bool LoopArrangement::check_cross(int w1, int i1, int w2, int i2) {
   int w1L = W[w1].size();
   int w2L = W[w2].size();
@@ -643,7 +697,9 @@ bool LoopArrangement::check_cross(int w1, int i1, int w2, int i2) {
 }
 
 
-
+/*****************************************************************************
+ * find all crossings brute force
+ *****************************************************************************/
 void LoopArrangement::find_all_crossings() {
   crossings.resize(0);
   //for every pair of segments, check if they intersect
@@ -668,14 +724,9 @@ void LoopArrangement::find_all_crossings() {
   }
 }   
 
-
-
-
-
-
-
-
-
+/****************************************************************************
+ * basically just by sorting, put the loops into minimal position
+ ****************************************************************************/
 void LoopArrangement::minimal_position() {
   
   //Unnecessary:
@@ -713,14 +764,18 @@ void LoopArrangement::minimal_position() {
 }
 
 
+/*****************************************************************************
+ * print out a crossing
+ *****************************************************************************/
 std::ostream& operator<<(std::ostream& os, Crossing& c) {
   os << "(" << c.w1 << "," << c.i1 << ")X(" << c.w1 << "," << c.i2 << ")\n";
   return os;
 }
 
 
-
-
+/*****************************************************************************
+ * Draw a loop arrangement to an X11 window
+ *****************************************************************************/
 void LoopArrangement::show() {
   float PI = 3.1415926535;
   
@@ -823,7 +878,9 @@ void LoopArrangement::show() {
   key_press = X.wait_for_key();
 }
   
-  
+/*****************************************************************************
+ * Print the data of a loop arrangement to the screen
+ *****************************************************************************/
 void LoopArrangement::print(std::ostream& os) {
   os << "Loop arrangement of " << W.size() << " loops\n";
   for (int i=0; i<(int)W.size(); ++i) {
