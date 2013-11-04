@@ -14,6 +14,8 @@ struct LoopArrangement;
 
 struct Crossing;
 
+struct Segment;
+
 struct GenPosition; 
 
 
@@ -81,6 +83,16 @@ struct GenPosition {
 };
 
 
+//this is needed to use Point2d<Rational>'s as keys
+struct dictionary_order {
+  bool operator()(const Point2d<Rational>& a, const Point2d<Rational>& b) {
+    if (a.x == b.x) {
+      return (a.y < b.y);
+    }
+    return (a.x < b.x);
+  }
+};
+
 /****************************************************************************
  * A LoopArrangement is a collection of homotopy classes
  * this is what handles finding the minimal position, etc
@@ -89,14 +101,22 @@ struct LoopArrangement {
   Surface* S;
   std::vector<std::string> W_words;
   std::vector<std::vector<int> > W;
+  
+  //these record the indices of the letters
   std::vector<std::vector<int> > positions_by_letter;
   std::vector<std::vector<GenPosition> > positions_by_gen;
-  int verbose;
   
+  //this is a list of Segments, which record the crossing data, etc
+  //this list will be 1-indexed!
+  std::vector<Segment> segments;
+
+  //this is a list of Crossings, which record which segments are incident, etc
+  //this list will also be 1-indexed to be the same as the segment list
+  std::map< Point2d<Rational>, int, dictionary_order> crossings_by_coords;
   std::vector<Crossing> crossings;
-  
-  
-  
+
+  //should be print messages? 1=normal 2=some 3=lots
+  int verbose;
   
   LoopArrangement(Surface& S, int verbose=1);
   LoopArrangement(Surface& S, std::vector<std::string>& W_words, int verbose=1);
@@ -116,10 +136,20 @@ struct LoopArrangement {
   //check if two strands cross at the given location
   bool check_cross(int w1, int i1, int w2, int i2);
   
-  //finds all crossings in a loop arrangement
-  //note that triple and up crossings will be reported as 
-  //all the component pair crossings
-  void find_all_crossings();
+  //just do a basic count of the crossings
+  //note higher valence vertices will be counted multiple times
+  int count_crossings();
+  
+  //find the positions of all the segments (not the crossing data)
+  void find_segment_coordinates();
+  
+  void find_segment_crossing_coordinates(Segment& s1, Segment& s2, bool do_cross,
+                                         Rational& s1_t, Rational& s2_t,
+                                         Point2d<Rational>& cross_coords);
+  
+  //find all the detailed crossing information
+  void find_crossing_data();
+  
   
   //finds the locations along the boundary edges associated to every letter 
   //in the input words such that the intersection number is minimized
@@ -142,17 +172,28 @@ struct LoopArrangement {
 };
 
 
+//this is the data associated with a segment (single pair of letters)
+//these record the actual rational coordinates of the start and endpoints
+//note that it'll start inside the generator which is -W[w][i1]
+struct Segment {
+  Surface* S;
+  LoopArrangement* LA;
+  int w, i1, i2;  //this is the index of the first and second letters
+  Point2d<Rational> start;
+  Point2d<Rational> end;
+  std::vector<std::pair<Rational, int> > crossings;
+};
+
+std::ostream& operator<<(std::ostream& os, Segment& s);
 
 //this allows us to package a crossing
 //note crossings happen between letters, so each crossing
 //gives the index of the letter just *before* the crossing for each word
 struct Crossing {
   Surface* S;
-  std::vector<int>* W; //the list of words
-  int w1; //which word is the first one
-  int i1; //which is the first letter of the crossing
-  int w2; //the second word
-  int i2; //the first letter of the crossing in word 2
+  LoopArrangement* LA;
+  Point2d<Rational> coords;
+  std::vector<int> segments; //the list of incident (signed) segments, in cyclic order
 };
 
 std::ostream& operator<<(std::ostream& os, Crossing& c);

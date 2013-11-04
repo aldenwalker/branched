@@ -42,12 +42,12 @@ class Rational {
     Rational& operator*=(int other);
     Rational& operator/=(const Rational& other);
     Rational& operator/=(int other);
-    bool operator<(const Rational& other);
-    bool operator>(const Rational& other);
-    bool operator<(int other);
-    bool operator>(int other);
-    bool operator==(const Rational& other);
-    bool operator==(int other);
+    bool operator<(const Rational& other) const;
+    bool operator>(const Rational& other) const;
+    bool operator<(int other) const;
+    bool operator>(int other) const;
+    bool operator==(const Rational& other) const;
+    bool operator==(int other) const;
     
     
     friend std::ostream& operator<<(std::ostream& os, Rational r);

@@ -24,10 +24,7 @@ SignedInd free_gen_from_tile_index(int ind) {
 
 //mod, but always return a nonnegative number
 int pos_mod(int a, int b) {
-  if (a < 0) {
-    a += ((a/b)+1)*b;
-  }
-  return a%b;
+  return (a%b + b)%b;
 }
 
 
@@ -382,15 +379,13 @@ int main(int argc, char* argv[]) {
     W_words[0] = std::string("efEFabbca");
     W_words[1] = std::string("ababaccdcdeaea");
     W_words[2] = std::string("aBeDfcbaEd");
-    LoopArrangement LA(S3, W_words);
-    LA.find_all_crossings();
-    std::cout << "After just initializing, " << LA.crossings.size() << " crossings:\n";
+    LoopArrangement LA(S3, W_words, 2);
+    std::cout << "After just initializing, " << LA.count_crossings() << " crossings:\n";
     LA.print(std::cout);
     LA.show();
   
     LA.minimal_position();
-    LA.find_all_crossings();
-    std::cout << "After minimizing, " << LA.crossings.size() << " crossings:\n";
+    std::cout << "After minimizing, " << LA.count_crossings() << " crossings:\n";
     LA.print(std::cout);
   
     LA.show();
@@ -399,25 +394,37 @@ int main(int argc, char* argv[]) {
   } else {
     std::vector<std::string> words(0);
     int genus, nboundaries;
+    int current_arg = 1;
+    int verbose=1;
     if (argc < 4) {
-      std::cout << "usage: ./branched <genus> <nbounaries> <loops>\n";
+      std::cout << "usage: ./branched -v[n] <genus> <nbounaries> <loops>\n";
       return 0;
     }
-    genus = atoi(argv[1]);
-    nboundaries = atoi(argv[2]);
-    for (int i=3; i<argc; ++i) {
+    while (argv[current_arg][0] == '-') {
+      switch(argv[current_arg][1]) {
+        case 'v':
+          if (argv[current_arg][2] == '\0') {
+            verbose = 2;
+          } else {
+            verbose = atoi(&argv[current_arg][2]);
+          }
+          break;
+      }
+      ++current_arg;
+    }     
+    genus = atoi(argv[current_arg]);
+    nboundaries = atoi(argv[current_arg+1]);
+    for (int i=current_arg+2; i<argc; ++i) {
       words.push_back(std::string(argv[i]));
     }
-    Surface S(genus, nboundaries);
-    LoopArrangement LA(S, words);
-    LA.find_all_crossings();
-    std::cout << "After just initializing, " << LA.crossings.size() << " crossings:\n";
+    Surface S(genus, nboundaries, verbose);
+    LoopArrangement LA(S, words, verbose);
+    std::cout << "After just initializing, " << LA.count_crossings() << " crossings:\n";
     LA.print(std::cout);
     LA.show();
   
     LA.minimal_position();
-    LA.find_all_crossings();
-    std::cout << "After minimizing, " << LA.crossings.size() << " crossings:\n";
+    std::cout << "After minimizing, " << LA.count_crossings() << " crossings:\n";
     LA.print(std::cout);
   
     LA.show();

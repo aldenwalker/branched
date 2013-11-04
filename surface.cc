@@ -260,24 +260,22 @@ Surface::Surface(int g, int nb, int verbose) {
     relator_inverse_map[ relator_inverse[i] ] = i;
   }
   
-  /*
   //create the polygon rational positions
-  Point2d<float> prev_point(1,0);
-  Point2d<float> current_point;
-  float PI = 3.1415926535;
-  float current_angle = 0;
-  float angle_step = (2*PI)/cyclic_order.size();
+  Point2d<double> prev_point(1,0);
+  Point2d<double> current_point;
+  double PI = 3.1415926535;
+  double current_angle = 0;
+  double angle_step = (2*PI)/cyclic_order.size();
   for (int i=0; i<(int)cyclic_order.size(); ++i) {
     current_angle += angle_step;
-    current_point = Point2d<float>(cos(current_angle), sin(current_angle));
+    current_point = Point2d<double>(cos(current_angle), sin(current_angle));
     int gen = cyclic_order[i];
-    //int num_crossing_gen = positions_by_gen[abs(gen)].size();
-    //gen_edge_start[gen] = prev_point;
-    //gen_edge_end[gen] = current_point;
-    //gen_edge_step[gen] = (float)(1.0/(num_crossing_gen+1)) * (current_point-prev_point);
+    gen_edge_start[gen] = Point2d<Rational>(approx_rat(prev_point.x, 0.01),
+                                            approx_rat(prev_point.y, 0.01));
+    gen_edge_end[gen] = Point2d<Rational>(approx_rat(current_point.x, 0.01),
+                                          approx_rat(current_point.y, 0.01));
     prev_point = current_point;
   }
-  */
 }
   
 /*****************************************************************************
@@ -474,7 +472,7 @@ int Surface::cyclically_ordered(std::vector<int>& w1, int start1, int dir1,
   int w1_ind = pos_mod(start1 + dir1*agreement, w1L);
   int w2_ind = pos_mod(start2 + dir2*agreement, w2L);
   int backward_gen = -dir1*w1[pos_mod(w1_ind-dir1, w1L)];
-  if (verbose > 2) std::cout << "Returning cyclic order of " << backward_gen << ", " << dir1*w1[w1_ind] << " " << dir2*w2[w2_ind] <<"\n";
+  if (verbose > 2) std::cout << "Returning cyclic order of " << backward_gen << ", " << dir1*w1[w1_ind] << ", " << dir2*w2[w2_ind] <<"\n";
   return cyclically_ordered(backward_gen, dir1*w1[w1_ind], dir2*w2[w2_ind]);
 }
 
@@ -700,29 +698,133 @@ bool LoopArrangement::check_cross(int w1, int i1, int w2, int i2) {
 /*****************************************************************************
  * find all crossings brute force
  *****************************************************************************/
-void LoopArrangement::find_all_crossings() {
-  crossings.resize(0);
+int LoopArrangement::count_crossings() {
   //for every pair of segments, check if they intersect
+  int num_crossings = 0;
   for (int i=0; i<(int)W.size(); ++i) {
-    Crossing temp_c;
-    temp_c.S = S;
-    temp_c.W = &W[i];
-    temp_c.w1 = i;
     for (int j=0; j<(int)W[i].size(); ++j) {
-      temp_c.i1 = j;
       for (int k=i; k<(int)W.size(); ++k) {
-        temp_c.w2 = k;
         for (int m=(k==i ? j+1 : 0); m<(int)W[k].size(); ++m) {
           if (k==i && m==j) continue;
-          if (check_cross(i, j, k, m)) {
-            temp_c.i2 = m;
-            crossings.push_back(temp_c);
-          }
+          if (check_cross(i, j, k, m)) ++num_crossings;
         }
       }
     }
   }
+  return num_crossings;
 }   
+
+/*****************************************************************************
+ * Compute the positions of all the segments
+ *****************************************************************************/
+void LoopArrangement::find_segment_coordinates() {
+  //create the step vectors for every generator
+  std::map<int, Point2d<Rational> > gen_edge_step;
+  for (int i=0; i<(int)S->cyclic_order.size(); ++i) {
+    int gen = S->cyclic_order[i];
+    gen_edge_step[gen] = S->gen_edge_end[gen] - S->gen_edge_start[gen];
+    gen_edge_step[gen] = Rational(1, positions_by_gen[abs(gen)].size()+1) * gen_edge_step[gen];
+  }
+  
+  segments.resize(1);
+  Segment temp_seg;
+  temp_seg.S = S;
+  temp_seg.LA = this;
+  for (int i=0; i<(int)W.size(); ++i) {
+    temp_seg.w = i;
+    for (int j=0; j<(int)W[i].size(); ++j) {
+      temp_seg.i1 = j;
+      temp_seg.i2 = (j+1)%int(W[i].size()); 
+      int leaving_gen = -W[i][temp_seg.i1];
+      int target_gen = W[i][temp_seg.i2];
+      int j1_pos_ind = positions_by_letter[i][temp_seg.i1];
+      int j2_pos_ind = positions_by_letter[i][temp_seg.i2];
+      temp_seg.start = (  leaving_gen > 0 
+                ? S->gen_edge_start[leaving_gen] + Rational(j1_pos_ind+1,1)*gen_edge_step[leaving_gen]
+                : S->gen_edge_end[leaving_gen] - Rational(j1_pos_ind+1,1)*gen_edge_step[leaving_gen] );
+      temp_seg.end = (  target_gen > 0 
+                ? S->gen_edge_start[target_gen] + Rational(j2_pos_ind+1,1)*gen_edge_step[target_gen]
+                : S->gen_edge_end[target_gen] - Rational(j2_pos_ind+1,1)*gen_edge_step[target_gen] );
+      
+      segments.push_back(temp_seg);
+  
+      //std::cout << "Letters " << j1 << " and " << j2 << " leaving gen: " << leaving_gen << 
+      //             " target gen: " << target_gen << "\n";
+      //std::cout << "j1_pos_ind: " << j1_pos_ind << "\n";
+      //std::cout << "gen_edge_start: " << gen_edge_start[leaving_gen] << "\n";
+      //std::cout << "gen_edge_end: " << gen_edge_end[leaving_gen] << "\n";
+      //std::cout << "gen_edge_step: " << gen_edge_step[leaving_gen] << "\n";
+      //std::cout << "j2_pos_ind: " << j2_pos_ind << "\n";
+      //std::cout << "gen_edge_start: " << gen_edge_start[target_gen] << "\n";
+      //std::cout << "gen_edge_end: " << gen_edge_end[target_gen] << "\n";
+      //std::cout << "gen_edge_step: " << gen_edge_step[target_gen] << "\n";
+    }
+  }
+}
+
+/*****************************************************************************
+ * Given two segments, find the rational coordinates of the location where
+ * they intersect, and the rational multipliers of the whole segments
+ * which get to that location
+ *****************************************************************************/
+void LoopArrangement::find_segment_crossing_coordinates(Segment& s1, Segment& s2, bool do_cross,
+                                                        Rational& s1_t, Rational& s2_t,
+                                                        Point2d<Rational>& cross_coords) {
+
+}
+
+/*****************************************************************************
+ * Find the data on the crossings and segments
+ * This finds the segment coordinates, and then finds all 
+ * the crossing locations and incidences between segments and crossings etc
+ ******************************************************************************/
+void LoopArrangement::find_crossing_data() {
+  find_segment_coordinates();
+  crossings.resize(1);
+  for (int i=1; i<(int)segments.size(); ++i) {
+    for (int j=i+1; j<(int)segments.size(); ++j) {
+      bool do_cross;
+      Point2d<Rational> cross_coords;
+      Rational s1_t;
+      Rational s2_t;
+      find_segment_crossing_coordinates(segments[i], segments[j], 
+                                        do_cross, s1_t, s2_t, cross_coords);
+      if (do_cross != check_cross(segments[i].w, segments[i].i1,
+                                  segments[j].w, segments[j].i1)) {
+        std::cout << "Crossing error\n";
+      }
+      if (!do_cross) continue;
+      //check if this crossing already exists
+      std::map<Point2d<Rational>,int, dictionary_order>::iterator it = crossings_by_coords.find(cross_coords);
+      int crossing_index;
+      if (it == crossings_by_coords.end()) {
+        Crossing temp_cross;
+        temp_cross.S = S;
+        temp_cross.LA = this;
+        temp_cross.coords = cross_coords;
+        temp_cross.segments.resize(0);
+        crossings.push_back(temp_cross);
+        crossing_index = crossings.size()-1;
+        crossings_by_coords[cross_coords] = crossing_index;
+      } else {
+        crossing_index = it->second;
+      }
+      //add the segments to the crossings
+      //these will get sorted later
+      crossings[crossing_index].segments.push_back(i);
+      crossings[crossing_index].segments.push_back(-i);
+      crossings[crossing_index].segments.push_back(j);
+      crossings[crossing_index].segments.push_back(-j);
+      
+      //add the crossing to the segments
+      segments[i].crossings.push_back( std::make_pair(s1_t, crossing_index) );
+      segments[j].crossings.push_back( std::make_pair(s2_t, crossing_index) );
+    }
+  }
+  //now all the segments and crossings know about each other
+  //but they are not sorted
+}
+        
 
 /****************************************************************************
  * basically just by sorting, put the loops into minimal position
@@ -763,12 +865,23 @@ void LoopArrangement::minimal_position() {
 
 }
 
-
+/*****************************************************************************
+ * print out a segment
+ *****************************************************************************/
+std::ostream& operator<<(std::ostream& os, Segment& s) {
+  os << "Segment " << s.w << "," << s.i1 << "; start: " << s.start << " end: " << s.end;
+  os << "; Crossings: ";
+  for (int i=0; i<(int)s.crossings.size(); ++i) {
+    os << s.crossings[i].first << "," << s.crossings[i].second << "; ";
+  }
+  return os;
+}
+  
 /*****************************************************************************
  * print out a crossing
  *****************************************************************************/
 std::ostream& operator<<(std::ostream& os, Crossing& c) {
-  os << "(" << c.w1 << "," << c.i1 << ")X(" << c.w1 << "," << c.i2 << ")\n";
+  os << "Crossing at " << c.coords << " segments: " << c.segments;
   return os;
 }
 
@@ -777,32 +890,13 @@ std::ostream& operator<<(std::ostream& os, Crossing& c) {
  * Draw a loop arrangement to an X11 window
  *****************************************************************************/
 void LoopArrangement::show() {
-  float PI = 3.1415926535;
   
   //start an 800x900 graphics windows with range [-1,1]x[-1.1,1]
   Point2d<float> translate(410,480);
   XGraphics X(820, 890, (float)400, translate);
   
-  //figure out where the edges are for the 
-  //generators and inverses
-  std::map<int, Point2d<float> > gen_edge_start;
-  std::map<int, Point2d<float> > gen_edge_end;
-  std::map<int, Point2d<float> > gen_edge_step;
-  //start at (1,0)
-  Point2d<float> prev_point(1,0);
-  Point2d<float> current_point;
-  float current_angle = 0;
-  float angle_step = (2*PI)/S->cyclic_order.size();
-  for (int i=0; i<(int)S->cyclic_order.size(); ++i) {
-    current_angle += angle_step;
-    current_point = Point2d<float>(cos(current_angle), sin(current_angle));
-    int gen = S->cyclic_order[i];
-    int num_crossing_gen = positions_by_gen[abs(gen)].size();
-    gen_edge_start[gen] = prev_point;
-    gen_edge_end[gen] = current_point;
-    gen_edge_step[gen] = (float)(1.0/(num_crossing_gen+1)) * (current_point-prev_point);
-    prev_point = current_point;
-  }
+  //make sure we've computed the endpoints of each segment
+  find_segment_coordinates();
   
   //get the colors for each word
   const char* color_list_arr[] = {"red", "blue", "limegreen", "gold", "cyan", "fuchsia", "orange"};
@@ -816,9 +910,17 @@ void LoopArrangement::show() {
   int black_color = X.get_color("black");
   for (int i=0; i<(int)S->cyclic_order.size(); ++i) {
     int gen = S->cyclic_order[i];
-    X.draw_line(gen_edge_start[gen], gen_edge_end[gen], black_color);
+    if (verbose>1) {
+      std::cout << "Polygon edge " << gen << " has coordinates " 
+               << S->gen_edge_start[gen] << " and " << S->gen_edge_end[gen] << "\n";
+    }
+    Point2d<float> ge_start(S->gen_edge_start[gen].x.get_d(),
+                            S->gen_edge_start[gen].y.get_d());
+    Point2d<float> ge_end(S->gen_edge_end[gen].x.get_d(),
+                          S->gen_edge_end[gen].y.get_d());
+    X.draw_line(ge_start, ge_end, black_color);
     //and the label
-    Point2d<float> label_spot = (float)(1.02*0.5)*(gen_edge_start[gen] + gen_edge_end[gen]);
+    Point2d<float> label_spot = (float)(1.02*0.5)*(ge_start + ge_end);
     std::string label(1,alpha_ind_to_letter(gen));
     X.draw_text_centered(label_spot, label, black_color);
   }
@@ -835,42 +937,15 @@ void LoopArrangement::show() {
   }
   
   //draw the loops
-  for (int i=0; i<(int)W.size(); ++i) {
-    int col = word_colors[i];
-    //std::cout << "Word " << i << ": " << LA.W[i] << " (" << LA.W_words[i] << ")\n";
-    for (int j=0; j<(int)W[i].size(); ++j) {
-      int j1 = j;
-      int j2 = (j+1)%(int)W[i].size();
-      int leaving_gen = -W[i][j1];
-      int target_gen = W[i][j2];
-      int j1_pos_ind = positions_by_letter[i][j1];
-      int j2_pos_ind = positions_by_letter[i][j2];
-      Point2d<float> j1_pos;
-      Point2d<float> j2_pos;
-      j1_pos = (  leaving_gen > 0 
-                ? gen_edge_start[leaving_gen] + (float)(j1_pos_ind+1)*gen_edge_step[leaving_gen]
-                : gen_edge_end[leaving_gen] - (float)(j1_pos_ind+1)*gen_edge_step[leaving_gen] );
-      j2_pos = (  target_gen > 0 
-                ? gen_edge_start[target_gen] + (float)(j2_pos_ind+1)*gen_edge_step[target_gen]
-                : gen_edge_end[target_gen] - (float)(j2_pos_ind+1)*gen_edge_step[target_gen] );
-      X.draw_line(j1_pos, j2_pos, col, 2);
-      std::stringstream edge_label_s;
-      edge_label_s << j;
-      std::string edge_label = edge_label_s.str();
-      X.draw_text_centered(j1_pos + (float)0.5*(j2_pos-j1_pos), edge_label, black_color);
-      //std::cout << "Letters " << j1 << " and " << j2 << " leaving gen: " << leaving_gen << 
-      //             " target gen: " << target_gen << "\n";
-      //std::cout << "j1_pos_ind: " << j1_pos_ind << "\n";
-      //std::cout << "gen_edge_start: " << gen_edge_start[leaving_gen] << "\n";
-      //std::cout << "gen_edge_end: " << gen_edge_end[leaving_gen] << "\n";
-      //std::cout << "gen_edge_step: " << gen_edge_step[leaving_gen] << "\n";
-      //std::cout << "j2_pos_ind: " << j2_pos_ind << "\n";
-      //std::cout << "gen_edge_start: " << gen_edge_start[target_gen] << "\n";
-      //std::cout << "gen_edge_end: " << gen_edge_end[target_gen] << "\n";
-      //std::cout << "gen_edge_step: " << gen_edge_step[target_gen] << "\n";
-      
-      
-    }
+  for (int i=1; i<(int)segments.size(); ++i) {
+    Point2d<float> start(segments[i].start.x.get_d(), segments[i].start.y.get_d());
+    Point2d<float> end(segments[i].end.x.get_d(), segments[i].end.y.get_d());
+    int col = word_colors[segments[i].w];
+    X.draw_line(start, end, col, 2);
+    std::stringstream edge_label_s;
+    edge_label_s << segments[i].i1;
+    std::string edge_label = edge_label_s.str();
+    X.draw_text_centered(start + (float)0.5*(end-start), edge_label, black_color);
   }
   
   std::string key_press;

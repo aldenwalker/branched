@@ -240,27 +240,27 @@ Rational& Rational::operator/=(int other) {
 }
 
 
-bool Rational::operator<(const Rational& other) {
+bool Rational::operator<(const Rational& other) const {
   return (mpq_cmp(R, other.R) < 0);
 }
 
-bool Rational::operator>(const Rational& other) {
+bool Rational::operator>(const Rational& other) const {
   return (mpq_cmp(R, other.R) > 0);
 }
 
-bool Rational::operator<(int other) {
+bool Rational::operator<(int other) const {
   return (mpq_cmp_si(R, other, 1) < 0);
 }
 
-bool Rational::operator>(int other) {
+bool Rational::operator>(int other) const {
   return (mpq_cmp_si(R, other, 1) > 0);
 }
 
-bool Rational::operator==(const Rational& other) {
+bool Rational::operator==(const Rational& other) const {
   return (mpq_cmp(R, other.R)==0);
 }
 
-bool Rational::operator==(int other) {
+bool Rational::operator==(int other) const {
   return (mpq_cmp_si(R, other, 1)==0);
 }
 
