@@ -1,5 +1,6 @@
 #include <sstream>
 #include <algorithm>
+#include <iomanip>
 #include <cmath>
 
 #include "surface.h"
@@ -545,6 +546,8 @@ void LoopArrangement::init_from_vectors(Surface& S,
   
   generate_positions_by_letter();
   
+  segments.resize(0);
+  
 }
 
 /*****************************************************************************
@@ -680,7 +683,7 @@ bool LoopArrangement::check_cross(int w1, int i1, int w2, int i2) {
   int ord2 = cyclically_ordered_positions(W[w1][i1p1], positions_by_letter[w1][i1p1],
                                           -W[w2][i2], positions_by_letter[w2][i2],
                                           W[w2][i2p1], positions_by_letter[w2][i2p1]);
-  if (verbose > 2) {
+  if (verbose > 3) {
     std::cout << "Checking whether " << W[w1] << "," << i1 << " and " << W[w2] << "," << i2 << " cross\n";
     std::cout << "Checking cyclic order of: (" << -W[w1][i1] << "," << positions_by_letter[w1][i1] 
                                           << "),(" << -W[w2][i2] << "," << positions_by_letter[w2][i2]
@@ -767,10 +770,53 @@ void LoopArrangement::find_segment_coordinates() {
  * they intersect, and the rational multipliers of the whole segments
  * which get to that location
  *****************************************************************************/
-void LoopArrangement::find_segment_crossing_coordinates(Segment& s1, Segment& s2, bool do_cross,
+void LoopArrangement::find_segment_crossing_coordinates(Segment& s1, Segment& s2, bool& do_cross,
                                                         Rational& s1_t, Rational& s2_t,
                                                         Point2d<Rational>& cross_coords) {
-
+  Point2d<Rational> delta_vec_1 = s1.end - s1.start;
+  Point2d<Rational> delta_vec_2 = s2.end - s2.start;
+  
+  if (verbose > 2) {
+    std::cout << "Finding the crossing coordinates for segments:\n";
+    std::cout << s1 << "\n";
+    std::cout << s2 << "\n";
+    std::cout << "Delta vector 1: " << delta_vec_1 << "\n";
+    std::cout << "Delta vector 2: " << delta_vec_2 << "\n";
+  }
+  
+  //solve the vector equation
+  //s1.start + s1_t*delta_vec_1 = s2.start + s2_t*delta_vec_2
+  Point2d<Rational> RHS = s2.start - s1.start;
+  Rational det = delta_vec_1.x*(-delta_vec_2.y) - (-delta_vec_2.x)*delta_vec_1.y;
+  if (verbose > 2) {
+    std::cout << "Det: " << det << "\n";
+  }
+  if (det == 0) {
+    do_cross = false;
+    return;
+  }
+  Rational a11 = (-delta_vec_2.y);
+  Rational a12 = -(-delta_vec_2.x);
+  Rational a21 = -delta_vec_1.y;
+  Rational a22 = delta_vec_1.x;
+  Point2d<Rational> ans(a11*RHS.x + a12*RHS.y, a21*RHS.x + a22*RHS.y);
+  ans =  det.inv() * ans;
+  
+  if (verbose > 2) {
+    std::cout << "Found t-values " << ans.x << " and " << ans.y << "\n";
+  }
+  
+  s1_t = ans.x;
+  s2_t = ans.y;
+  if (s1_t > 1 || s1_t < 0 || s2_t > 1 || s2_t < 0) {
+    do_cross = false;
+    return;
+  }
+  cross_coords = s1.start + s1_t*delta_vec_1;
+  do_cross = true;
+  if (verbose > 2) {
+    std::cout << "Found crossing coordinates " << cross_coords << "\n";
+  }
 }
 
 /*****************************************************************************
@@ -823,6 +869,12 @@ void LoopArrangement::find_crossing_data() {
   }
   //now all the segments and crossings know about each other
   //but they are not sorted
+  //sort the crossing appearances on the segments
+  for (int i=1; i<(int)segments.size(); ++i) {
+    std::sort(segments[i].crossings.begin(), segments[i].crossings.end());
+  }
+  
+  
 }
         
 
@@ -853,6 +905,10 @@ void LoopArrangement::minimal_position() {
               sort_at_gen_positions);
   }
   
+  if (verbose > 1) {
+    std::cout << "Sorted the gen positions\n";
+  }
+  
   //regenerate the letter positions
   generate_positions_by_letter();
   
@@ -871,9 +927,11 @@ void LoopArrangement::minimal_position() {
 std::ostream& operator<<(std::ostream& os, Segment& s) {
   os << "Segment " << s.w << "," << s.i1 << "; start: " << s.start << " end: " << s.end;
   os << "; Crossings: ";
+  os << std::setprecision(3);
   for (int i=0; i<(int)s.crossings.size(); ++i) {
-    os << s.crossings[i].first << "," << s.crossings[i].second << "; ";
+    os << s.crossings[i].first.get_d() << "," << s.crossings[i].second << "; ";
   }
+  os << std::setprecision(6);
   return os;
 }
   
@@ -896,7 +954,9 @@ void LoopArrangement::show() {
   XGraphics X(820, 890, (float)400, translate);
   
   //make sure we've computed the endpoints of each segment
-  find_segment_coordinates();
+  if (segments.size() < 2) {
+    find_segment_coordinates();
+  }
   
   //get the colors for each word
   const char* color_list_arr[] = {"red", "blue", "limegreen", "gold", "cyan", "fuchsia", "orange"};
@@ -958,6 +1018,7 @@ void LoopArrangement::show() {
  *****************************************************************************/
 void LoopArrangement::print(std::ostream& os) {
   os << "Loop arrangement of " << W.size() << " loops\n";
+  os << "Verbose: " << verbose << "\n";
   for (int i=0; i<(int)W.size(); ++i) {
     os << i << ": " << W[i] << "(" << W_words[i] << ")\n";
   }
@@ -968,6 +1029,18 @@ void LoopArrangement::print(std::ostream& os) {
       std::cout << "(" << positions_by_gen[i][j].w << "," << positions_by_gen[i][j].i << ") ";
     }
     std::cout << "\n";
+  }
+  if (segments.size() > 1) {
+    os << "Segments:\n";
+    for (int i=1; i<(int)segments.size(); ++i) {
+      os << i << ": " << segments[i] << "\n";
+    }
+  }
+  if (crossings.size() > 1) {
+    os << "Crossings:\n";
+    for (int i=1; i<(int)crossings.size(); ++i) {
+      os << i << ": " << crossings[i] << "\n";
+    }
   }
     
 }

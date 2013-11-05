@@ -110,6 +110,16 @@ Rational Rational::div(const Rational& other) {
   return r;
 }
 
+Rational Rational::inv() {
+  mpq_t temp;
+  mpq_init(temp);
+  mpq_set_si(temp, 1, 1);
+  mpq_div(temp, temp, R);
+  Rational r = Rational(temp);
+  mpq_clear(temp);
+  return r;
+}
+
 Rational Rational::operator+(const Rational& other) {
   mpq_t temp;
   mpq_init(temp);

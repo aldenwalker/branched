@@ -385,9 +385,9 @@ int main(int argc, char* argv[]) {
     LA.show();
   
     LA.minimal_position();
+    LA.find_crossing_data();
     std::cout << "After minimizing, " << LA.count_crossings() << " crossings:\n";
     LA.print(std::cout);
-  
     LA.show();
     return 0;
   
@@ -424,6 +424,7 @@ int main(int argc, char* argv[]) {
     LA.show();
   
     LA.minimal_position();
+    LA.find_crossing_data();
     std::cout << "After minimizing, " << LA.count_crossings() << " crossings:\n";
     LA.print(std::cout);
   

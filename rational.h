@@ -27,6 +27,7 @@ class Rational {
     int n();
     Rational add(const Rational& other);
     Rational div(const Rational& other);
+    Rational inv();
     Rational operator+(const Rational& other);
     Rational operator+(int other);
     Rational operator-(const Rational& other);

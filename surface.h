@@ -143,7 +143,7 @@ struct LoopArrangement {
   //find the positions of all the segments (not the crossing data)
   void find_segment_coordinates();
   
-  void find_segment_crossing_coordinates(Segment& s1, Segment& s2, bool do_cross,
+  void find_segment_crossing_coordinates(Segment& s1, Segment& s2, bool& do_cross,
                                          Rational& s1_t, Rational& s2_t,
                                          Point2d<Rational>& cross_coords);
   
