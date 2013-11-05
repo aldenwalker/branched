@@ -65,6 +65,7 @@ public:
   void draw_faint_line(const Point2d<int>& p1, const Point2d<int>& p2, long col);
   void erase_circle(const Point2d<int>& p, int r);
   void draw_circle(const Point2d<int>& p, int r, long col);
+  void draw_circle(const Point2d<float>& p, int r, long col);
   void draw_concentric_circles(const Point2d<int>& p, int r, long col);
   void draw_path(const std::vector<Point2d<int> >& L, long col);
   void draw_text(const Point2d<int>& p, std::stringstream &T, long col);

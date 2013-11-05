@@ -873,7 +873,27 @@ void LoopArrangement::find_crossing_data() {
   for (int i=1; i<(int)segments.size(); ++i) {
     std::sort(segments[i].crossings.begin(), segments[i].crossings.end());
   }
-  
+  //for each crossing, sort the incident segments
+  for (int i=1; i<(int)crossings.size(); ++i) {
+    std::vector<std::pair<double, int> > segs_with_angles(crossings[i].segments.size());
+    for (int j=0; j<(int)crossings[i].segments.size(); ++j) {
+      Point2d<Rational> other_end;
+      int seg_ind = crossings[i].segments[j];
+      if (seg_ind < 0) {
+        other_end = segments[abs(seg_ind)].start;
+      } else {
+        other_end = segments[seg_ind].end;
+      }
+      Point2d<Rational> delta_v = other_end - crossings[i].coords;
+      segs_with_angles[j].first = atan2(delta_v.y.get_d(), delta_v.x.get_d());
+      segs_with_angles[j].second = seg_ind;
+    }
+    std::sort(segs_with_angles.begin(), segs_with_angles.end());
+    for (int j=0; j<(int)crossings[i].segments.size(); ++j) {
+      crossings[i].segments[j] = segs_with_angles[j].second;
+    }
+  }
+      
   
 }
         
@@ -1006,6 +1026,13 @@ void LoopArrangement::show() {
     edge_label_s << segments[i].i1;
     std::string edge_label = edge_label_s.str();
     X.draw_text_centered(start + (float)0.5*(end-start), edge_label, black_color);
+  }
+  
+  //draw the crossings, if we have them
+  for (int i=1; i<(int)crossings.size(); ++i) {
+    Point2d<float> center(crossings[i].coords.x.get_d(),
+                          crossings[i].coords.y.get_d());
+    X.draw_circle(center, 4, black_color);
   }
   
   std::string key_press;

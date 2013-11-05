@@ -281,7 +281,16 @@ void XGraphics::draw_circle(const Point2d<int>& p, int r, long col){
     XSetLineAttributes(display, gc, 1, LineSolid, 1, 1);
     XSetFillStyle(display, gc, FillSolid); 
     XDrawArc(display, win, gc, (p.x-r), (height-p.y)-r, 2*r, 2*r, 0, 23040);
-};
+}
+
+void XGraphics::draw_circle(const Point2d<float>& p, int r, long col){
+    XSetForeground(display, gc, col);
+    XSetLineAttributes(display, gc, line_thickness, LineSolid, 1, 1);
+    XSetFillStyle(display, gc, FillSolid); 
+    Point2d<int> real_p((int)(p.x*scale + translate.x), (int)(p.y*scale + translate.y));
+    XDrawArc(display, win, gc, (real_p.x-r), (height-(real_p.y+r)), 2*r, 2*r, 0, 23040);
+}
+
 
 void XGraphics::draw_concentric_circles(const Point2d<int>& p, int r, long col){
   int s;
