@@ -5,6 +5,9 @@
 #include <string>
 #include <iostream>
 
+#include "point.h"
+#include "rational.h"
+#include "graphics.h"
 
 typedef int SignedInd;
 
@@ -21,6 +24,13 @@ std::ostream& operator<<(std::ostream& os, Vertex& v);
 
 struct Edge {
   Edge();
+  int start;
+  int end;
+  bool two_sided;
+  Point2d<Rational> start_pos;
+  Point2d<Rational> end_pos;
+  Point2d<Rational> start_neg;
+  Point2d<Rational> end_neg;
   std::vector<SignedInd> bd;
   std::vector<SignedInd> in_bd_pos;
   std::vector<SignedInd> in_bd_neg;
@@ -34,6 +44,13 @@ struct Triangle {
   SignedInd& operator[](int i);
 };
 std::ostream& operator<<(std::ostream& os, Triangle& t);
+
+
+
+struct Cell {
+  std::vector<SignedInd> bd;
+};
+std::ostream& operator<<(std::ostream& os, Cell& c);
 
 
 /*****************************************************************************
@@ -57,6 +74,16 @@ struct Triangulation {
   
     Triangulation branched_surface_from_vector(std::vector<int>& weights);
     Triangulation resolve_branched_surface();
+};
+
+struct Cellulation {
+  std::vector<Vertex> vertices;
+  std::vector<Edge> edges;
+  std::vector<Cell> cells;
+  std::vector<std::vector<SignedInd> > loops;
+  
+  void print(std::ostream& os);
+  void draw_to_XGraphics(XGraphics& X);
 };
 
 #endif

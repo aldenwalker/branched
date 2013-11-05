@@ -59,7 +59,7 @@ SignedInd& Edge::operator[](int i) {
 }
 
 std::ostream& operator<<(std::ostream& os, Edge& e) {
-  os << "E(" << e.bd[0] << "," << e.bd[1] << "); {{";
+  os << "E(" << e.start << "," << e.end << "); {{";
   for (int i=0; i<(int)e.in_bd_pos.size(); ++i) {
     os << e.in_bd_pos[i];
     if (i<(int)e.in_bd_pos.size()-1) os << ", ";
@@ -86,6 +86,14 @@ SignedInd& Triangle::operator[](int i) {
 
 std::ostream& operator<<(std::ostream& os, Triangle& t) {
   os << "T(" << t.bd[0] << "," << t.bd[1] << "," << t.bd[2] << ");";
+  return os;
+}
+
+/*****************************************************************************
+ * Cell
+ * ***************************************************************************/
+std::ostream& operator<<(std::ostream& os, Cell& c) {
+  os << "C" << c.bd << "\n";
   return os;
 }
 
@@ -349,6 +357,30 @@ Triangulation Triangulation::resolve_branched_surface() {
   return Triangulation();
 }
 
+void Cellulation::print(std::ostream& os) {
+  os << "Vertices (" << vertices.size()-1 << "):\n";
+  for (int i=1; i<(int)vertices.size(); ++i) {
+    os << i << ": " << vertices[i] << "\n";
+  }
+  os << "Edges (" << edges.size()-1 << "):\n";
+  for (int i=1; i<(int)edges.size(); ++i) {
+    os << i << ": " << edges[i] << "\n";
+  }
+  os << "Cells (" << cells.size()-1 << "):\n";
+  for (int i=1; i<(int)cells.size(); ++i) {
+    os << i << ": " << cells[i] << "\n";
+  }
+  os << "Loops:\n";
+  for (int i=0; i<(int)loops.size(); ++i) {
+    os << i << ": " << loops[i] << "\n";
+  }
+}
+
+
+void Cellulation::draw_to_XGraphics(XGraphics& X) {
+}
+
+
 int main(int argc, char* argv[]) {
 
   if (argc < 2) {
@@ -389,6 +421,12 @@ int main(int argc, char* argv[]) {
     std::cout << "After minimizing, " << LA.count_crossings() << " crossings:\n";
     LA.print(std::cout);
     LA.show();
+    
+    Cellulation C = LA.cellulation_from_loops();
+    
+    std::cout << "Cellulation:\n";
+    C.print(std::cout);
+    
     return 0;
   
   } else {
@@ -427,8 +465,13 @@ int main(int argc, char* argv[]) {
     LA.find_crossing_data();
     std::cout << "After minimizing, " << LA.count_crossings() << " crossings:\n";
     LA.print(std::cout);
-  
     LA.show();
+    
+    Cellulation C = LA.cellulation_from_loops();
+    
+    std::cout << "Cellulation from loops:\n";
+    C.print(std::cout);
+    
     return 0;
   }
 }

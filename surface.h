@@ -18,6 +18,9 @@ struct Segment;
 
 struct GenPosition; 
 
+std::ostream& operator<<(std::ostream& os, std::vector<int>& L);
+
+
 
 /****************************************************************************
  * Surface class
@@ -109,6 +112,7 @@ struct LoopArrangement {
   //this is a list of Segments, which record the crossing data, etc
   //this list will be 1-indexed!
   std::vector<Segment> segments;
+  std::vector<std::vector<int> > segments_by_letter;
 
   //this is a list of Crossings, which record which segments are incident, etc
   //this list will also be 1-indexed to be the same as the segment list
@@ -167,7 +171,7 @@ struct LoopArrangement {
   //the complementary regions of the loops
   //The cellulation is topologically the surface, and the 
   //marked loops are part of the returned cellulation
-  void cellulation_from_loops();
+  Cellulation cellulation_from_loops();
   
 };
 
