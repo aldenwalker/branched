@@ -93,7 +93,7 @@ std::ostream& operator<<(std::ostream& os, Triangle& t) {
  * Cell
  * ***************************************************************************/
 std::ostream& operator<<(std::ostream& os, Cell& c) {
-  os << "C" << c.bd << "\n";
+  os << "C" << c.bd;
   return os;
 }
 
@@ -376,6 +376,43 @@ void Cellulation::print(std::ostream& os) {
   }
 }
 
+
+/*****************************************************************************
+ * both of the following functions follows as though the edges are on the 
+ * boundary of a relator disk, and it's reading off the relator disk
+ * this will give the INVERSE boundary as reading it off as a fatgraph
+ *****************************************************************************/
+/*****************************************************************************
+ * get the next edge in the boundary:
+ * this assumes that all vertices have cyclically ordered edges
+ *****************************************************************************/
+SignedInd Cellulation::next_edge(SignedInd e) {
+  int v = (e>0 ? edges[abs(e)].end : edges[abs(e)].start);
+  int vi = -1;
+  for (int i=0; i<(int)vertices[v].in_bd_of.size(); ++i) {
+    if (vertices[v].in_bd_of[i] == -e) {
+      vi = i;
+      break;
+    }
+  }
+  int vi_prev = pos_mod(vi-1, vertices[v].in_bd_of.size());
+  return vertices[v].in_bd_of[vi_prev];
+}
+
+/*****************************************************************************
+ * follow an edge until we loop back
+ * this assumes that all vertices have cyclically ordered edges
+ *****************************************************************************/
+std::vector<SignedInd> Cellulation::follow_edge(SignedInd e) {
+  std::vector<SignedInd> ans(0);
+  ans.push_back(e);
+  int next_e = next_edge(e);
+  while (next_e != e) {
+    ans.push_back(next_e);
+    next_e = next_edge(next_e);
+  }
+  return ans; 
+}
 
 void Cellulation::draw_to_XGraphics(XGraphics& X) {
 }

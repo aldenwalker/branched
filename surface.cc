@@ -976,155 +976,129 @@ Cellulation LoopArrangement::cellulation_from_loops() {
   }
   
   //make an edge for every chunk of every segment
-  //and also fill in the data for the interior vertices
-  std::vector<std::vector<int> > edges_along_segment(segments.size()+1);
+  std::vector<std::vector<int> > edges_along_segments(segments.size()+1);
   for (int i=1; i<(int)segments.size(); ++i) {
-    edges_along_segment[i].resize(0);
-    int prev_vert = -1;
+    edges_along_segments[i].resize(0);
+    Edge temp_edge;
+    temp_edge.in_bd_pos.resize(0);
+    temp_edge.in_bd_neg.resize(0);
+    temp_edge.two_sided = false; //all of these are not two sided
     for (int j=0; j<(int)segments[i].crossings.size()+1; ++j) {
-      int next_vert = (j < (int)segments[i].crossings.size() ? segments[i].crossings[j].second : -1);
-      int this_edge = C.edges.size();
-      Edge temp_edge;
-      temp_edge.two_sided = false;
-      temp_edge.start = prev_vert;
-      if (prev_vert != -1) temp_edge.start_pos = crossings[segments[i].crossings[j-1].second].coords;
-      temp_edge.end = next_vert;
-      if (next_vert != -1) temp_edge.end_pos = crossings[segments[i].crossings[j].second].coords;
-      edges_along_segment[i].push_back(this_edge);
+      edges_along_segments[i].push_back(C.edges.size());
       C.edges.push_back(temp_edge);
-      //record the edge in the previous and next vertices
-      if (next_vert != -1) {
-        for (int k=0; k<(int)C.vertices[next_vert].in_bd_of.size(); ++k) {
-          if (C.vertices[next_vert].in_bd_of[k] == -i) {
-            C.vertices[next_vert].in_bd_of[k] = -this_edge;
-            break;
-          }
+    }
+  }
+  
+  //now scan through the crossings and fill in the details
+  for (int i=1; i<(int)segments.size(); ++i) {
+    
+    //we don't know the vertices for the start and end, 
+    //but we do know the locations
+    C.edges[edges_along_segments[i][0]].start_pos = segments[i].start;
+    C.edges[edges_along_segments[i][edges_along_segments[i].size()-1]].end_pos = segments[i].end;
+    
+    for (int j=0; j<(int)segments[i].crossings.size(); ++j) {
+      int this_vert = segments[i].crossings[j].second;
+      C.edges[edges_along_segments[i][j]].end = this_vert;
+      C.edges[edges_along_segments[i][j]].end_pos = crossings[this_vert].coords;
+      C.edges[edges_along_segments[i][j+1]].start = this_vert;
+      C.edges[edges_along_segments[i][j+1]].start_pos = crossings[this_vert].coords;
+      //fill in the correct edges -- note we need to look in the crossing data
+      //because we are editing the vertices all the time
+      for (int k=0; k<(int)crossings[this_vert].segments.size(); ++k) {
+        if (crossings[this_vert].segments[k] == i) {
+          C.vertices[this_vert].in_bd_of[k] = edges_along_segments[i][j+1];
+        } else if (crossings[this_vert].segments[k] == -i) {
+          C.vertices[this_vert].in_bd_of[k] = -edges_along_segments[i][j];
         }
       }
-      if (prev_vert != -1) {
-        for (int k=0; k<(int)C.vertices[prev_vert].in_bd_of.size(); ++k) {
-          if (C.vertices[prev_vert].in_bd_of[k] == i) {
-            C.vertices[prev_vert].in_bd_of[k] = this_edge;
-            break;
-          }
-        }
-      }
-      prev_vert = next_vert;
     }
-    
-    if (verbose > 2) {
-      std::cout << "Created edges " << edges_along_segment[i] << " along segment " << i << ": " << segments[i] << "\n";
-    }
-    
+  }
+  
+  if (verbose>2) {
+    std::cout << "Added " << C.edges.size()-1 << " edges from segments\n";
   }
   
   //now we need to add edges and vertices all along the polygon boundary
   
   //make the big vertex at the center of the polygon edges
+  //the edges outgoing go in the reversed order of the normal relator
+  //e.g. DCdcBAba
   int main_vertex_ind = C.vertices.size();
   Vertex temp_main_vert;
-  
+  temp_main_vert.in_bd_of.resize(S->relator.size());
+  C.vertices.push_back(temp_main_vert);
   if (verbose > 2) {
     std::cout << "The main vertex index is " << main_vertex_ind << "\n";
   }
   
-  //the edges outgoing go in the reversed order of the normal relator
-  //e.g. DCdcBAba
-  temp_main_vert.in_bd_of.resize(S->relator.size());
-  C.vertices.push_back(temp_main_vert);
-  
-  //add a bunch of edges for every generator
+  //add a bunch of edge placeholders for every generator
+  std::vector<std::vector<int> > edges_along_gens(S->ngens+1);
   for (int i=1; i<=S->ngens; ++i) {
-    int prev_vert = main_vertex_ind;
-    if (verbose > 2) {
-      std::cout << "Going along generator edge " << i << "\n";
+    edges_along_gens[i].resize(0);
+    Edge temp_edge;
+    temp_edge.in_bd_pos.resize(0);
+    temp_edge.in_bd_neg.resize(0);
+    for (int j=0; j<(int)positions_by_gen[i].size()+1; ++j) {
+      edges_along_gens[i].push_back(C.edges.size());
+      C.edges.push_back(temp_edge);
     }
-    for (int j=0; j<(int)positions_by_gen[i].size(); ++j) {
-      //compute the index of the next vertex
-      int next_vert = C.vertices.size();
-      //compute the index of the edge
-      int this_edge = C.edges.size();
-      
-      //attach the edge to the previous vertex
-      if (j==0) {
-        //we need to add it to the main vertex
-        int edge_departure_ind = S->relator.size() - (S->relator_map[i]+1);
-        temp_main_vert.in_bd_of[edge_departure_ind] = this_edge;
-      } else {
-        C.vertices[prev_vert].in_bd_of.push_back(this_edge);
-      }
-      
-      //figure out what other edges attach to the new vertex
+  }
+  
+  //now go back through and deal with the vertices
+  for (int i=1; i<=S->ngens; ++i) {
+    //for the first edge in the gen, add it to the initial vertex
+    int first_edge = edges_along_gens[i][0];
+    C.edges[first_edge].start = main_vertex_ind;
+    temp_main_vert.in_bd_of[S->relator.size() - (S->relator_map[i]+1)] = first_edge;
+    C.edges[first_edge].two_sided = true;
+    C.edges[first_edge].start_pos = S->gen_edge_start[i];
+    C.edges[first_edge].start_neg = S->gen_edge_end[-i];
+    
+    //for the final edge, add it also to the final vertex
+    //(this might be the same edge)
+    int last_edge = edges_along_gens[i][edges_along_gens[i].size()-1];
+    C.edges[last_edge].end = main_vertex_ind;
+    temp_main_vert.in_bd_of[S->relator.size() - (S->relator_map[-i]+1)] = -last_edge;
+    C.edges[last_edge].two_sided = true;
+    C.edges[last_edge].end_pos = S->gen_edge_end[i];
+    C.edges[last_edge].end_neg = S->gen_edge_start[-i];
+    
+    //fill in the vertices
+    for (int j=0; j<(int)edges_along_gens[i].size()-1; ++j) {
       int word = positions_by_gen[i][j].w;
       int letter = positions_by_gen[i][j].i;
+      int sign = sgn(W[word][letter]);
       int prev_letter = pos_mod(letter-1, W[word].size());
       int out_segment = segments_by_letter[word][letter];
       int in_segment = segments_by_letter[word][prev_letter];
-      int out_edge = edges_along_segment[out_segment][0];
-      int in_edge = edges_along_segment[in_segment][edges_along_segment[in_segment].size()-1];     
+      int out_edge = edges_along_segments[out_segment][0];
+      int in_edge = edges_along_segments[in_segment][edges_along_segments[in_segment].size()-1];     
       Point2d<Rational> out_segment_start = segments[out_segment].start;
       Point2d<Rational> in_segment_end = segments[in_segment].end;
       
-      //we can actually create the new edge now
-      Edge temp_edge;
-      temp_edge.two_sided = true;
-      temp_edge.start = prev_vert;
-      temp_edge.end = next_vert;
-      //wrangle the coordinates
+      //connect all the edges
+      int this_vert = C.vertices.size();
+      C.edges[edges_along_gens[i][j]].two_sided = true;
+      C.edges[edges_along_gens[i][j]].end = this_vert;
+      C.edges[edges_along_gens[i][j]].end_pos = (sign > 0 ? in_segment_end : out_segment_start);
+      C.edges[edges_along_gens[i][j]].end_neg = (sign > 0 ? out_segment_start : in_segment_end);
+      C.edges[edges_along_gens[i][j+1]].two_sided = true;
+      C.edges[edges_along_gens[i][j+1]].start = this_vert;
+      C.edges[edges_along_gens[i][j+1]].start_pos = (sign > 0 ? in_segment_end : out_segment_start);
+      C.edges[edges_along_gens[i][j+1]].start_neg = (sign > 0 ? out_segment_start : in_segment_end);
+      C.edges[out_edge].start = this_vert;
+      C.edges[in_edge].end = this_vert;
       
-      if (verbose > 2) {
-        std::cout << "Adding edge " << temp_edge << " at index " << this_edge << "\n";
-      }
-      C.edges.push_back(temp_edge);
-      
-      
-      //go back and add this data to the edges
-      C.edges[out_edge].start = next_vert;
-      C.edges[in_edge].end = next_vert;      
-      
-      //make a new vertex -- it's important to push in this order
-      //so that we can push on the next edge
+      //create the new vertex
       Vertex temp_vert;
-      temp_vert.in_bd_of.resize(0);
-      //push back the edge to the *left*
-      if (W[word][letter] < 0) { //it's a negative gen
-        temp_vert.in_bd_of.push_back(-in_edge);
-      } else {
-        temp_vert.in_bd_of.push_back(out_edge);
-      }
-      
-      //push back the incoming edge
-      temp_vert.in_bd_of.push_back(-this_edge);
-      
-      //push_back the edge to the *right*
-      if (W[word][letter] < 0) {
-        temp_vert.in_bd_of.push_back(out_edge);
-      } else {
-        temp_vert.in_bd_of.push_back(-in_edge);
-      }
-      
+      temp_vert.in_bd_of.resize(4);
+      temp_vert.in_bd_of[0] = (sign > 0 ? -in_edge : out_edge);
+      temp_vert.in_bd_of[1] = -edges_along_gens[i][j];
+      temp_vert.in_bd_of[2] = (sign > 0 ? out_edge : -in_edge);
+      temp_vert.in_bd_of[3] = edges_along_gens[i][j+1];
       C.vertices.push_back(temp_vert);
-      
-      prev_vert = next_vert;
     }
-    //finally, attach a last edge to the main vertex and add it to the final vertex
-    Edge temp_edge;
-    temp_edge.start = prev_vert;
-    temp_edge.end = main_vertex_ind;
-    int edge_incoming_ind = S->relator.size() - (S->relator_map[-i]+1);
-    temp_main_vert.in_bd_of[edge_incoming_ind] = -C.edges.size();
-    if ((int)positions_by_gen[i].size() == 0) {
-      //we might never have attached it to the beginning
-      int edge_departure_ind = S->relator.size() - (S->relator_map[i]+1);
-      temp_main_vert.in_bd_of[edge_departure_ind] = C.edges.size();
-    } else {
-      C.vertices[prev_vert].in_bd_of.push_back(C.edges.size());
-    }      
-    if (verbose > 2) {
-        std::cout << "Adding a final edge " << temp_edge << " at index " << C.edges.size() << "\n";
-      }
-    C.edges.push_back(temp_edge);
-    
   }
   
   //copy the temp main vert boundary so it's correct
@@ -1136,11 +1110,44 @@ Cellulation LoopArrangement::cellulation_from_loops() {
     std::vector<int> temp_loop(0);
     for (int j=0; j<(int)W[i].size(); ++j) {
       int seg_ind = segments_by_letter[i][j];
-      temp_loop.insert(temp_loop.end(), edges_along_segment[seg_ind].begin(),
-                                        edges_along_segment[seg_ind].end());
+      temp_loop.insert(temp_loop.end(), edges_along_segments[seg_ind].begin(),
+                                        edges_along_segments[seg_ind].end());
     }
     C.loops.push_back(temp_loop);
   }
+  
+  //now we need to go through and find the cells
+  Cell temp_cell;
+  std::vector<std::pair<bool,bool> > done_edge(C.edges.size());
+  for (int i=1; i<(int)C.edges.size(); ++i) done_edge[i] = std::make_pair(false, false);
+  while (true) {
+    int start_edge = 0;
+    for (int i=1; i<(int)done_edge.size(); ++i) {
+      if (!done_edge[i].first) {
+        start_edge = i;
+        done_edge[i].first = true;
+        break;
+      } else if (!done_edge[i].second) {
+        start_edge = -i;
+        done_edge[i].second = true;
+        break;
+      }
+    }
+    if (start_edge == 0) break;
+    temp_cell.sign = 1;
+    temp_cell.bd = C.follow_edge(start_edge);
+    for (int i=0; i<(int)temp_cell.bd.size(); ++i) {
+      if (sgn(temp_cell.bd[i]) > 0) {
+        C.edges[temp_cell.bd[i]].in_bd_pos.push_back(C.cells.size());
+        done_edge[temp_cell.bd[i]].first = true;
+      } else {
+        C.edges[-temp_cell.bd[i]].in_bd_neg.push_back(C.cells.size());
+        done_edge[-temp_cell.bd[i]].second = true;
+      }
+    }
+    C.cells.push_back(temp_cell);
+  }
+  
   
   return C;
 }

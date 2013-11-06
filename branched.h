@@ -48,6 +48,7 @@ std::ostream& operator<<(std::ostream& os, Triangle& t);
 
 
 struct Cell {
+  int sign;
   std::vector<SignedInd> bd;
 };
 std::ostream& operator<<(std::ostream& os, Cell& c);
@@ -83,6 +84,8 @@ struct Cellulation {
   std::vector<std::vector<SignedInd> > loops;
   
   void print(std::ostream& os);
+  SignedInd next_edge(SignedInd e);
+  std::vector<SignedInd> follow_edge(SignedInd e);
   void draw_to_XGraphics(XGraphics& X);
 };
 
