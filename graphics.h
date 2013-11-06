@@ -46,11 +46,11 @@ public:
   
   //returns the vector to ADD to your vector such that the first character 
   //starts exactly on your point
-  Point2d<int> text_offset_left(std::string& S);
+  Point2d<int> text_offset_left(const std::string& S);
   
   //returns the vector to ADD to your vector such that the center of the 
   //text extents gets placed directly over your vector
-  Point2d<int> text_offset_center(std::string& S);
+  Point2d<int> text_offset_center(const std::string& S);
   
   void erase_field();
   Point2d<int> mouse_location();
@@ -63,7 +63,7 @@ public:
                                  const Point2d<float>& p2, 
                                  long col, 
                                  int thickness,
-                                 std::string& label);
+                                 const std::string& label);
   void draw_square(int x, int y, int z, long col);  
   void draw_rectangle(int x, int y, int zx, int zy, long col);
   void draw_filled_rectangle(int x, int y, int zx, int zy, long col);
@@ -78,7 +78,7 @@ public:
   void draw_text(const Point2d<int>& p, std::stringstream &T, long col);
   void draw_text(const Point2d<int>& p, std::string &S, long col);
   void draw_text(const Point2d<float>& p, std::string &S, long col);
-  void draw_text_centered(const Point2d<float>& p, std::string &S, long col);
+  void draw_text_centered(const Point2d<float>& p, const std::string &S, long col);
   void draw_label(const Point2d<int>& p, int i, long col);
   std::string wait_for_key();
 };

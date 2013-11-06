@@ -47,6 +47,12 @@ struct Surface {
   //The weird order is so that the relator is [a,b][c,d]...fgh...
   Surface(int g, int nb, int verbose=1); 
   
+  //check if a "generator" is actually a boundary loop placeholder
+  bool is_boundary_loop(int gen);
+  
+  //check if a generator is a boundary generator
+  bool is_boundary_gen(int gen);
+  
   //print out all the data
   void print(std::ostream& os);
   

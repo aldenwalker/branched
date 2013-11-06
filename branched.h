@@ -27,6 +27,7 @@ struct Edge {
   int start;
   int end;
   bool two_sided;
+  bool boundary_loop;
   Point2d<Rational> start_pos;
   Point2d<Rational> end_pos;
   Point2d<Rational> start_neg;
@@ -49,6 +50,7 @@ std::ostream& operator<<(std::ostream& os, Triangle& t);
 
 struct Cell {
   int sign;
+  bool contains_boundary;
   std::vector<SignedInd> bd;
 };
 std::ostream& operator<<(std::ostream& os, Cell& c);

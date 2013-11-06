@@ -279,7 +279,22 @@ Surface::Surface(int g, int nb, int verbose) {
     prev_point = current_point;
   }
 }
+
+/*****************************************************************************
+ * Check if a gen is actually just a boundary loop placeholder
+ * ***************************************************************************/
+bool Surface::is_boundary_loop(int gen) {
+  return (gen > 2*genus+nboundaries);
+}
   
+  
+/*****************************************************************************
+ * Check if a gen is a boundary generator
+ * ***************************************************************************/
+bool Surface::is_boundary_gen(int gen) {
+  return (abs(gen) > 2*genus);
+}
+
 /*****************************************************************************
  * Print out a surface
  *****************************************************************************/
@@ -731,6 +746,7 @@ void LoopArrangement::find_segment_coordinates() {
   std::map<int, Point2d<Rational> > gen_edge_step;
   for (int i=0; i<(int)S->cyclic_order.size(); ++i) {
     int gen = S->cyclic_order[i];
+    if (S->is_boundary_loop(abs(gen))) continue;
     gen_edge_step[gen] = S->gen_edge_end[gen] - S->gen_edge_start[gen];
     gen_edge_step[gen] = Rational(1, positions_by_gen[abs(gen)].size()+1) * gen_edge_step[gen];
   }
@@ -989,6 +1005,7 @@ Cellulation LoopArrangement::cellulation_from_loops() {
     temp_edge.in_bd_pos.resize(0);
     temp_edge.in_bd_neg.resize(0);
     temp_edge.two_sided = false; //all of these are not two sided
+    temp_edge.boundary_loop = false;
     for (int j=0; j<(int)segments[i].crossings.size()+1; ++j) {
       edges_along_segments[i].push_back(C.edges.size());
       C.edges.push_back(temp_edge);
@@ -1038,6 +1055,15 @@ Cellulation LoopArrangement::cellulation_from_loops() {
     std::cout << "The main vertex index is " << main_vertex_ind << "\n";
   }
   
+  //make a vertex for every boundary
+  std::map<int, int> vertices_for_boundary_gens;
+  for (int i=2*S->genus+1; i<=2*S->genus+S->nboundaries; ++i) {
+    Vertex temp_vert;
+    temp_vert.in_bd_of.resize(0);
+    vertices_for_boundary_gens[i] = C.vertices.size();
+    C.vertices.push_back(temp_vert);
+  }
+  
   //add a bunch of edge placeholders for every generator
   std::vector<std::vector<int> > edges_along_gens(S->ngens+1);
   for (int i=1; i<=S->ngens; ++i) {
@@ -1045,6 +1071,7 @@ Cellulation LoopArrangement::cellulation_from_loops() {
     Edge temp_edge;
     temp_edge.in_bd_pos.resize(0);
     temp_edge.in_bd_neg.resize(0);
+    temp_edge.boundary_loop = false;
     for (int j=0; j<(int)positions_by_gen[i].size()+1; ++j) {
       edges_along_gens[i].push_back(C.edges.size());
       C.edges.push_back(temp_edge);
@@ -1063,12 +1090,21 @@ Cellulation LoopArrangement::cellulation_from_loops() {
     
     //for the final edge, add it also to the final vertex
     //(this might be the same edge)
+    //if it's a boundary generator, attach it instead to the vertex for that boundary
     int last_edge = edges_along_gens[i][edges_along_gens[i].size()-1];
-    C.edges[last_edge].end = main_vertex_ind;
-    temp_main_vert.in_bd_of[S->relator.size() - (S->relator_map[-i]+1)] = -last_edge;
-    C.edges[last_edge].two_sided = true;
-    C.edges[last_edge].end_pos = S->gen_edge_end[i];
-    C.edges[last_edge].end_neg = S->gen_edge_start[-i];
+    if (S->is_boundary_gen(i)) {
+      C.edges[last_edge].end = vertices_for_boundary_gens[i];
+      C.edges[last_edge].two_sided = true;
+      C.edges[last_edge].end_pos = S->gen_edge_end[i];
+      C.edges[last_edge].end_neg = S->gen_edge_start[-i];
+      C.vertices[vertices_for_boundary_gens[i]].in_bd_of.push_back(-last_edge);
+    } else {
+      C.edges[last_edge].end = main_vertex_ind;
+      temp_main_vert.in_bd_of[S->relator.size() - (S->relator_map[-i]+1)] = -last_edge;
+      C.edges[last_edge].two_sided = true;
+      C.edges[last_edge].end_pos = S->gen_edge_end[i];
+      C.edges[last_edge].end_neg = S->gen_edge_start[-i];
+    }
     
     //fill in the vertices
     for (int j=0; j<(int)edges_along_gens[i].size()-1; ++j) {
@@ -1110,6 +1146,22 @@ Cellulation LoopArrangement::cellulation_from_loops() {
   //copy the temp main vert boundary so it's correct
   C.vertices[main_vertex_ind].in_bd_of = temp_main_vert.in_bd_of;
 
+  //we just need to add one more edge for each boundary
+  for (int i=2*S->genus+1; i<=2*S->genus+S->nboundaries; ++i) {
+    int this_boundary_vert = vertices_for_boundary_gens[i];
+    int this_edge = C.edges.size();
+    Edge temp_edge;
+    temp_edge.start = temp_edge.end = this_boundary_vert;
+    C.vertices[this_boundary_vert].in_bd_of.push_back(-this_edge);
+    C.vertices[this_boundary_vert].in_bd_of.push_back(this_edge);
+    temp_edge.two_sided = false;
+    temp_edge.boundary_loop = true;
+    temp_edge.start_pos = S->gen_edge_end[i];
+    temp_edge.end_pos = S->gen_edge_start[-i];
+    C.edges.push_back(temp_edge);
+  }
+  
+  
   //the edges along the loops form the loops of the cellulation
   C.loops.resize(0);
   for (int i=0; i<(int)W.size(); ++i) {
@@ -1142,6 +1194,7 @@ Cellulation LoopArrangement::cellulation_from_loops() {
     if (start_edge == 0) break;
     temp_cell.sign = 1;
     temp_cell.bd = C.follow_edge(start_edge);
+    temp_cell.contains_boundary = false;
     for (int i=0; i<(int)temp_cell.bd.size(); ++i) {
       if (sgn(temp_cell.bd[i]) > 0) {
         C.edges[temp_cell.bd[i]].in_bd_pos.push_back(C.cells.size());
@@ -1149,6 +1202,9 @@ Cellulation LoopArrangement::cellulation_from_loops() {
       } else {
         C.edges[-temp_cell.bd[i]].in_bd_neg.push_back(C.cells.size());
         done_edge[-temp_cell.bd[i]].second = true;
+      }
+      if (C.edges[abs(temp_cell.bd[i])].boundary_loop) {
+        temp_cell.contains_boundary = true;
       }
     }
     C.cells.push_back(temp_cell);
@@ -1229,11 +1285,19 @@ void LoopArrangement::show(Cellulation* C) {
                             S->gen_edge_start[gen].y.get_d());
     Point2d<float> ge_end(S->gen_edge_end[gen].x.get_d(),
                           S->gen_edge_end[gen].y.get_d());
-    X.draw_line(ge_start, ge_end, black_color);
+    if (S->is_boundary_loop(gen)) {
+      X.draw_line(ge_start, ge_end, black_color, 2);
+    } else {
+      X.draw_line(ge_start, ge_end, black_color, 1);
+    }
     //and the label
     Point2d<float> label_spot = (float)(1.05*0.5)*(ge_start + ge_end);
-    std::string label(1,alpha_ind_to_letter(gen));
-    X.draw_text_centered(label_spot, label, black_color);
+    if (S->is_boundary_loop(gen)) {
+      // I guess do nothing?
+    } else {
+      std::string label(1,alpha_ind_to_letter(gen));
+      X.draw_text_centered(label_spot, label, black_color);
+    } 
   }
   
   //print out the key
@@ -1252,7 +1316,8 @@ void LoopArrangement::show(Cellulation* C) {
     Point2d<float> start(segments[i].start.x.get_d(), segments[i].start.y.get_d());
     Point2d<float> end(segments[i].end.x.get_d(), segments[i].end.y.get_d());
     int col = word_colors[segments[i].w];
-    X.draw_line(start, end, col, 2);
+    X.draw_arrowed_labeled_line(start, end, col, 2, std::string(""));
+    //X.draw_line(start, end, col, 2);
     //std::stringstream edge_label_s;
     //edge_label_s << segments[i].i1;
     //std::string edge_label = edge_label_s.str();

@@ -144,7 +144,7 @@ void XGraphics::setup_font(void){
   //XSetFont (display, gc, font->fid);
 }
 
-Point2d<int> XGraphics::text_offset_left(std::string& S) {
+Point2d<int> XGraphics::text_offset_left(const std::string& S) {
   XCharStruct te;
   int fdir, fdescent, fascent;
   XTextExtents(font, S.c_str(), S.size(), &fdir, &fascent, &fdescent, &te);
@@ -155,7 +155,7 @@ Point2d<int> XGraphics::text_offset_left(std::string& S) {
 
 //returns the vector to ADD to your vector such that the center of the 
 //text extents gets placed directly over your vector
-Point2d<int> XGraphics::text_offset_center(std::string& S) {
+Point2d<int> XGraphics::text_offset_center(const std::string& S) {
   XCharStruct te;
   int fdir, fdescent, fascent;
   XTextExtents(font, S.c_str(), S.size(), &fdir, &fascent, &fdescent, &te);
@@ -227,7 +227,7 @@ void XGraphics::draw_arrowed_labeled_line(const Point2d<float>& p1,
                                           const Point2d<float>& p2, 
                                           long col, 
                                           int thickness,
-                                          std::string& label) {
+                                          const std::string& label) {
   //draw the main line
   XSetForeground(display, gc, col);
   XSetLineAttributes(display, gc, thickness, LineSolid, CapButt, JoinMiter);
@@ -249,8 +249,10 @@ void XGraphics::draw_arrowed_labeled_line(const Point2d<float>& p1,
   draw_line(center, side2, col, thickness);
   
   //draw the label
-  Point2d<float>text_center = center +(float)0.02*scaled_diff + (float)0.02*perp;
-  draw_text_centered(text_center, label, col);
+  if (label.size() > 0) {
+    Point2d<float>text_center = center +(float)0.02*scaled_diff + (float)0.02*perp;
+    draw_text_centered(text_center, label, col);
+  }
 }
 
 
@@ -382,7 +384,7 @@ void XGraphics::draw_text(const Point2d<float>& p, std::string &S, long col) {
   XDrawString(display, win, gc, real_p.x+offset.x, height-(real_p.y+offset.y), S.c_str(), S.size());
 }
   
-void XGraphics::draw_text_centered(const Point2d<float>& p, std::string &S, long col) {
+void XGraphics::draw_text_centered(const Point2d<float>& p, const std::string &S, long col) {
   XSetForeground(display, gc, col);
   Point2d<int> real_p( (int)(p.x*scale + translate.x), (int)(p.y*scale + translate.y) );
   Point2d<int> offset = text_offset_center(S);

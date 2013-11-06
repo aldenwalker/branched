@@ -70,6 +70,7 @@ std::ostream& operator<<(std::ostream& os, Edge& e) {
     if (i<(int)e.in_bd_neg.size()-1) os << ", ";
   }
   os << "}}";
+  if (e.boundary_loop) os << " (boundary loop)\n";
   return os;
 }
 
@@ -94,6 +95,7 @@ std::ostream& operator<<(std::ostream& os, Triangle& t) {
  * ***************************************************************************/
 std::ostream& operator<<(std::ostream& os, Cell& c) {
   os << "C" << c.bd;
+  if (c.contains_boundary) os << " (contains boundary)";
   return os;
 }
 
@@ -422,6 +424,7 @@ void Cellulation::draw_to_xgraphics(XGraphics& X) {
   //draw the cells; make them random gray levels
   srand(2);
   for (int i=1; i<(int)cells.size(); ++i) {
+    if (cells[i].sign < 0 || cells[i].contains_boundary) continue;
     double rand_gray_level = (double)rand()/(double)RAND_MAX;
     rand_gray_level = rand_gray_level*0.3 + 0.5;
     int col = X.get_rgb_color(rand_gray_level, rand_gray_level, rand_gray_level);
@@ -456,11 +459,11 @@ void Cellulation::draw_to_xgraphics(XGraphics& X) {
     std::stringstream edge_label_s;
     edge_label_s << i;
     std::string edge_label = edge_label_s.str();
-    X.draw_arrowed_labeled_line(temp1, temp2, black_color, 2, edge_label);
+    X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, edge_label);
     if (edges[i].two_sided) {
       temp1 = Point2d<float>(edges[i].start_neg.x.get_d(), edges[i].start_neg.y.get_d());
       temp2 = Point2d<float>(edges[i].end_neg.x.get_d(), edges[i].end_neg.y.get_d());
-      X.draw_arrowed_labeled_line(temp1, temp2, black_color, 2, edge_label);
+      X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, edge_label);
     }
   }
 
