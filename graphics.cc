@@ -1,6 +1,7 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <cmath>
 
 #include "graphics.h"
 
@@ -100,7 +101,19 @@ int XGraphics::get_color(std::string c) {
   return color_list[c];
 }
     
-    
+
+int XGraphics::get_rgb_color(double r, double g, double b) {
+  XColor temp;
+  temp.flags = DoRed | DoGreen | DoBlue;
+  temp.red = (int)(r*65535);
+  temp.green = (int)(g*65535);
+  temp.blue = (int)(b*65535);
+  if (XAllocColor(display, screen_colormap, &temp) == 0) {
+    std::cout << "Color not found?\n";
+  }
+  return temp.pixel;
+}
+
 
 
 void XGraphics::flush() {
@@ -210,7 +223,35 @@ void XGraphics::draw_line(const Point2d<float>& p1, const Point2d<float>& p2, lo
   XSetLineAttributes(display, gc, line_thickness, LineSolid, CapButt, JoinMiter);
 }
   
+void XGraphics::draw_arrowed_labeled_line(const Point2d<float>& p1, 
+                                          const Point2d<float>& p2, 
+                                          long col, 
+                                          int thickness,
+                                          std::string& label) {
+  //draw the main line
+  XSetForeground(display, gc, col);
+  XSetLineAttributes(display, gc, thickness, LineSolid, CapButt, JoinMiter);
+  Point2d<int> p1_real((int)(p1.x*scale + translate.x), (int)(p1.y*scale + translate.y));
+  Point2d<int> p2_real((int)(p2.x*scale + translate.x), (int)(p2.y*scale + translate.y));
+  XDrawLine(display, win, gc, p1_real.x, height-p1_real.y, p2_real.x, height-p2_real.y);
+  XSetLineAttributes(display, gc, line_thickness, LineSolid, CapButt, JoinMiter);
   
+  //draw the arrow
+  Point2d<float> diff = p2-p1;
+  Point2d<float> perp(-diff.y, diff.x);
+  float scale_to_1 = 1.0/sqrt(diff.x*diff.x + diff.y*diff.y);
+  Point2d<float> scaled_diff = scale_to_1*diff;
+  perp = scale_to_1*perp;
+  Point2d<float> center = p1 + (float)0.5*diff;
+  Point2d<float> side1 = center - (float)0.015*scaled_diff + (float)0.015*perp;
+  Point2d<float> side2 = center - (float)0.015*scaled_diff - (float)0.015*perp;
+  draw_line(center, side1, col, thickness);
+  draw_line(center, side2, col, thickness);
+  
+  //draw the label
+  Point2d<float>text_center = center +(float)0.02*scaled_diff + (float)0.02*perp;
+  draw_text_centered(text_center, label, col);
+}
 
 
 void XGraphics::draw_square(int x, int y, int z, long col){
@@ -260,6 +301,18 @@ void XGraphics::draw_box_radius(Point2d<float>& center, float radius, long col) 
   XFillRectangle(display, win, gc, LL_real.x, height-(LL_real.y+z), z, z);
   draw_point(center, col);
 }
+
+
+void XGraphics::draw_filled_polygon(const std::vector<Point2d<float> >& points, int col) {
+  std::vector<XPoint> real_points(points.size());
+  for (int i=0; i<(int)points.size(); ++i) {
+    real_points[i].x = (int)(points[i].x*scale + translate.x);
+    real_points[i].y = height - (int)(points[i].y*scale + translate.y);
+  }
+  XSetForeground(display, gc, col);
+  XFillPolygon(display, win, gc, &real_points[0], points.size(), Convex, CoordModeOrigin);
+}
+
 
 void XGraphics::draw_faint_line(const Point2d<int>& p1, 
                                 const Point2d<int>& p2, 

@@ -1187,7 +1187,7 @@ std::ostream& operator<<(std::ostream& os, Crossing& c) {
 /*****************************************************************************
  * Draw a loop arrangement to an X11 window
  *****************************************************************************/
-void LoopArrangement::show() {
+void LoopArrangement::show(Cellulation* C) {
   
   //start an 800x900 graphics windows with range [-1,1]x[-1.1,1]
   Point2d<float> translate(410,480);
@@ -1196,6 +1196,11 @@ void LoopArrangement::show() {
   //make sure we've computed the endpoints of each segment
   if (segments.size() < 2) {
     find_segment_coordinates();
+  }
+  
+  //if we have a cellulation, draw it now so everything goes over it
+  if (C != NULL) {
+    (*C).draw_to_xgraphics(X);
   }
   
   //get the colors for each word
@@ -1220,7 +1225,7 @@ void LoopArrangement::show() {
                           S->gen_edge_end[gen].y.get_d());
     X.draw_line(ge_start, ge_end, black_color);
     //and the label
-    Point2d<float> label_spot = (float)(1.02*0.5)*(ge_start + ge_end);
+    Point2d<float> label_spot = (float)(1.05*0.5)*(ge_start + ge_end);
     std::string label(1,alpha_ind_to_letter(gen));
     X.draw_text_centered(label_spot, label, black_color);
   }
@@ -1242,10 +1247,10 @@ void LoopArrangement::show() {
     Point2d<float> end(segments[i].end.x.get_d(), segments[i].end.y.get_d());
     int col = word_colors[segments[i].w];
     X.draw_line(start, end, col, 2);
-    std::stringstream edge_label_s;
-    edge_label_s << segments[i].i1;
-    std::string edge_label = edge_label_s.str();
-    X.draw_text_centered(start + (float)0.5*(end-start), edge_label, black_color);
+    //std::stringstream edge_label_s;
+    //edge_label_s << segments[i].i1;
+    //std::string edge_label = edge_label_s.str();
+    //X.draw_text_centered(start + (float)0.5*(end-start), edge_label, black_color);
   }
   
   //draw the crossings, if we have them

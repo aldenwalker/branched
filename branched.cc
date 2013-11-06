@@ -414,7 +414,57 @@ std::vector<SignedInd> Cellulation::follow_edge(SignedInd e) {
   return ans; 
 }
 
-void Cellulation::draw_to_XGraphics(XGraphics& X) {
+/*****************************************************************************
+ * draw the edges and the cells to the given XGraphics
+ ****************************************************************************/
+void Cellulation::draw_to_xgraphics(XGraphics& X) {
+
+  //draw the cells; make them random gray levels
+  srand(2);
+  for (int i=1; i<(int)cells.size(); ++i) {
+    double rand_gray_level = (double)rand()/(double)RAND_MAX;
+    rand_gray_level = rand_gray_level*0.3 + 0.5;
+    int col = X.get_rgb_color(rand_gray_level, rand_gray_level, rand_gray_level);
+    //std::cout << "Random gray level: " << rand_gray_level << "\n";
+    //std::cout << "Returned color: " << col << "\n";
+    std::vector<Point2d<float> > points(0);
+    for (int j=0; j<(int)cells[i].bd.size(); ++j) {
+      int e = cells[i].bd[j];
+      if (e>0) {
+        points.push_back( Point2d<float>(edges[e].start_pos.x.get_d(), 
+                                         edges[e].start_pos.y.get_d()) );
+      } else {
+        if (edges[-e].two_sided) {
+          points.push_back( Point2d<float>(edges[-e].end_neg.x.get_d(), 
+                                           edges[-e].end_neg.y.get_d()) );
+        } else {
+          points.push_back( Point2d<float>(edges[-e].end_pos.x.get_d(), 
+                                           edges[-e].end_pos.y.get_d()) );
+        }
+      }
+    }
+    X.draw_filled_polygon(points, col);
+  }
+
+  //draw the edges
+  Point2d<float> temp1;
+  Point2d<float> temp2;
+  int black_color = X.get_color(std::string("black"));
+  for (int i=1; i<(int)edges.size(); ++i) {
+    temp1 = Point2d<float>(edges[i].start_pos.x.get_d(), edges[i].start_pos.y.get_d());
+    temp2 = Point2d<float>(edges[i].end_pos.x.get_d(), edges[i].end_pos.y.get_d());
+    std::stringstream edge_label_s;
+    edge_label_s << i;
+    std::string edge_label = edge_label_s.str();
+    X.draw_arrowed_labeled_line(temp1, temp2, black_color, 2, edge_label);
+    if (edges[i].two_sided) {
+      temp1 = Point2d<float>(edges[i].start_neg.x.get_d(), edges[i].start_neg.y.get_d());
+      temp2 = Point2d<float>(edges[i].end_neg.x.get_d(), edges[i].end_neg.y.get_d());
+      X.draw_arrowed_labeled_line(temp1, temp2, black_color, 2, edge_label);
+    }
+  }
+
+      
 }
 
 
@@ -463,6 +513,7 @@ int main(int argc, char* argv[]) {
     
     std::cout << "Cellulation:\n";
     C.print(std::cout);
+    LA.show(&C);
     
     return 0;
   
@@ -508,6 +559,7 @@ int main(int argc, char* argv[]) {
     
     std::cout << "Cellulation from loops:\n";
     C.print(std::cout);
+    LA.show(&C);
     
     return 0;
   }

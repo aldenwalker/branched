@@ -162,7 +162,7 @@ struct LoopArrangement {
   void minimal_position();
   
   //this draws a loop arrangement of the surface
-  void show();
+  void show(Cellulation* C=NULL);
   
   //prints out the data
   void print(std::ostream& os);

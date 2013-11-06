@@ -86,7 +86,7 @@ struct Cellulation {
   void print(std::ostream& os);
   SignedInd next_edge(SignedInd e);
   std::vector<SignedInd> follow_edge(SignedInd e);
-  void draw_to_XGraphics(XGraphics& X);
+  void draw_to_xgraphics(XGraphics& X);
 };
 
 #endif

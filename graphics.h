@@ -39,6 +39,7 @@ public:
   XGraphics(int w, int h, float s, Point2d<float>& t);
   ~XGraphics();
   int get_color(std::string c);
+  int get_rgb_color(double r, double g, double b);
   void flush();
   void list_fonts();
   void setup_font();
@@ -58,9 +59,15 @@ public:
   void draw_line(const Point2d<int>& p1, const Point2d<int>& p2, long col);
   void draw_line(const Point2d<float>& p1, const Point2d<float>& p2, long col);
   void draw_line(const Point2d<float>& p1, const Point2d<float>& p2, long col, int thickness);
+  void draw_arrowed_labeled_line(const Point2d<float>& p1, 
+                                 const Point2d<float>& p2, 
+                                 long col, 
+                                 int thickness,
+                                 std::string& label);
   void draw_square(int x, int y, int z, long col);  
   void draw_rectangle(int x, int y, int zx, int zy, long col);
   void draw_filled_rectangle(int x, int y, int zx, int zy, long col);
+  void draw_filled_polygon(const std::vector<Point2d<float> >& points, int col);
   void draw_box_radius(Point2d<float>& center, float radius, long col);
   void draw_faint_line(const Point2d<int>& p1, const Point2d<int>& p2, long col);
   void erase_circle(const Point2d<int>& p, int r);
