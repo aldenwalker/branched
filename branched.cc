@@ -70,7 +70,7 @@ std::ostream& operator<<(std::ostream& os, Edge& e) {
     if (i<(int)e.in_bd_neg.size()-1) os << ", ";
   }
   os << "}}";
-  if (e.boundary_loop) os << " (boundary loop)\n";
+  if (e.boundary_loop) os << " (boundary loop)";
   return os;
 }
 

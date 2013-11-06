@@ -15,6 +15,26 @@ extern "C" {
 
 #include "point.h"
 
+
+/*****************************************************************************
+ * Graphics drawing class for X11
+ * 
+ * Create a window with XGraphics(width, height, scale, and translate),
+ * All the functions with *float* parameters are modified by the scale and 
+ * translate values -- everything is scaled, THEN translated, so 
+ * e.g. XGraphics(800,800,800,Point2d<float>(400,400)
+ * produces an 800x800 window which covers the box [-1,1]x[-1,1]
+ * 
+ * X11 flips the y axis, and this class flips it back, so if 
+ * translate is (0,0), the origin is in the lower left
+ * 
+ * The functions with integer parameters are unaffected by the scale and 
+ * translate values
+ * 
+ * all color arguments should be the result of calls to get_rgb_color or 
+ * get_color
+ * ***************************************************************************/
+
 class XGraphics {
 private:
   Display *display;
