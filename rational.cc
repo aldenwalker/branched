@@ -110,7 +110,7 @@ Rational Rational::div(const Rational& other) {
   return r;
 }
 
-Rational Rational::inv() {
+Rational Rational::inv() const {
   mpq_t temp;
   mpq_init(temp);
   mpq_set_si(temp, 1, 1);
@@ -187,7 +187,7 @@ Rational Rational::operator/(int other) {
   return r;
 }
 
-Rational Rational::operator*(const Rational& other) {
+Rational Rational::operator*(const Rational& other) const {
   mpq_t temp;
   mpq_init(temp);
   mpq_mul(temp, R, other.R);
@@ -284,6 +284,12 @@ ostream& operator<<(ostream& os, Rational r) {
   return os;
 }
 
+/*****************************************************************************
+ * reversed operands
+ * ***************************************************************************/
+Rational operator/(int a, const Rational& b) {
+  return b.inv()*a;
+}
 
 /*****************************************************************************/
 /* Helper functions                                                          */

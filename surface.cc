@@ -845,6 +845,35 @@ void LoopArrangement::find_segment_crossing_coordinates(Segment& s1, Segment& s2
 }
 
 /*****************************************************************************
+ * find the algebraic intersection number of an interval with the segments
+ * ***************************************************************************/
+int LoopArrangement::algebraic_segment_intersection_number(const Point2d<Rational>& p1,
+                                                           const Point2d<Rational>& p2) {
+  Point2d<Rational> diff = p2 - p1;
+  Rational t1, t2;
+  Point2d<Rational> cross_coords;
+  bool do_cross;
+  int ans = 0;
+  for (int i=1; i<(int)segments.size(); ++i) {
+    //std::cout << "Intersecting " << p1 << "->" << p2 << " and " << segments[i].start << "->" << segments[i].end << "\n";
+    segment_intersection(p1, p2, segments[i].start, segments[i].end, do_cross, t1, t2, cross_coords);
+    if (!do_cross) {
+      //std::cout << "They don't cross\n"; 
+      continue;
+    }
+    Point2d<Rational> diff2 = segments[i].end - segments[i].start;
+    ans += (cross_z(diff, diff2) > 0 ? 1 : -1);
+    //if (cross_z(diff, diff2) > 0) {
+    //  std::cout << "They cross positively; winding number now " << ans << "\n";
+    //} else {
+    //  std::cout << "They cross negatively; winding number now " << ans << "\n";
+    //}
+  }
+  return ans;
+}
+
+
+/*****************************************************************************
  * Find the data on the crossings and segments
  * This finds the segment coordinates, and then finds all 
  * the crossing locations and incidences between segments and crossings etc
@@ -1176,6 +1205,7 @@ Cellulation LoopArrangement::cellulation_from_loops() {
   
   //now we need to go through and find the cells
   Cell temp_cell;
+  temp_cell.computed_winding_number = false;
   std::vector<std::pair<bool,bool> > done_edge(C.edges.size());
   for (int i=1; i<(int)C.edges.size(); ++i) done_edge[i] = std::make_pair(false, false);
   while (true) {
@@ -1195,21 +1225,29 @@ Cellulation LoopArrangement::cellulation_from_loops() {
     temp_cell.sign = 1;
     temp_cell.bd = C.follow_edge(start_edge);
     temp_cell.contains_boundary = false;
+    temp_cell.coords = Point2d<Rational>(0,0);
     for (int i=0; i<(int)temp_cell.bd.size(); ++i) {
-      if (sgn(temp_cell.bd[i]) > 0) {
-        C.edges[temp_cell.bd[i]].in_bd_pos.push_back(C.cells.size());
-        done_edge[temp_cell.bd[i]].first = true;
+      int e = temp_cell.bd[i];
+      if (e>0) {
+        C.edges[e].in_bd_pos.push_back(C.cells.size());
+        done_edge[e].first = true;
+        temp_cell.coords = temp_cell.coords + C.edges[e].start_pos;
       } else {
-        C.edges[-temp_cell.bd[i]].in_bd_neg.push_back(C.cells.size());
-        done_edge[-temp_cell.bd[i]].second = true;
+        C.edges[-e].in_bd_neg.push_back(C.cells.size());
+        done_edge[-e].second = true;
+        if (C.edges[-e].two_sided == true) {
+          temp_cell.coords = temp_cell.coords + C.edges[-e].end_neg;
+        } else {
+          temp_cell.coords = temp_cell.coords + C.edges[-e].end_pos;
+        } 
       }
       if (C.edges[abs(temp_cell.bd[i])].boundary_loop) {
         temp_cell.contains_boundary = true;
       }
     }
+    temp_cell.coords = Rational(1,temp_cell.bd.size())*temp_cell.coords;
     C.cells.push_back(temp_cell);
   }
-  
   
   return C;
 }

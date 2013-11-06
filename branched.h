@@ -9,6 +9,10 @@
 #include "rational.h"
 #include "graphics.h"
 
+
+//forward declaration of looparrangement
+struct LoopArrangement;
+
 typedef int SignedInd;
 
 int sgn(int x);
@@ -46,38 +50,16 @@ struct Triangle {
 };
 std::ostream& operator<<(std::ostream& os, Triangle& t);
 
-
-
 struct Cell {
   int sign;
   bool contains_boundary;
+  bool computed_winding_number;
+  int winding_number;
   std::vector<SignedInd> bd;
+  Point2d<Rational> coords;
 };
 std::ostream& operator<<(std::ostream& os, Cell& c);
 
-
-/*****************************************************************************
- * Triangulation                                                             
- *****************************************************************************/
-//all lists in here are ONE-BASED, so that SignedInds are easier
-struct Triangulation {
-    std::vector<Triangle> triangles;
-    std::vector<Edge> edges;
-    std::vector<Vertex> vertices;
-    std::vector<std::vector<SignedInd> > fundamental_loops;
-
-    Triangulation();
-    int add_edge(int v0, int v1);
-    int add_triangle(SignedInd e0, SignedInd e1, SignedInd e2);
-    void set_closed_surface(int genus);
-    void read_file(std::string filename);
-    void write_file(std::string filename);
-    void print(std::ostream& os);
-    int chi(bool resolve_vertices=true);
-  
-    Triangulation branched_surface_from_vector(std::vector<int>& weights);
-    Triangulation resolve_branched_surface();
-};
 
 struct Cellulation {
   std::vector<Vertex> vertices;
@@ -89,6 +71,10 @@ struct Cellulation {
   SignedInd next_edge(SignedInd e);
   std::vector<SignedInd> follow_edge(SignedInd e);
   void draw_to_xgraphics(XGraphics& X);
+  
+  //this computes the winding number of the loops around a given cell, relative 
+  //to another cell
+  void compute_winding_numbers(LoopArrangement& LA, int relative_to_cell);
 };
 
 #endif

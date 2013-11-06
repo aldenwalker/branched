@@ -157,6 +157,10 @@ struct LoopArrangement {
                                          Rational& s1_t, Rational& s2_t,
                                          Point2d<Rational>& cross_coords);
   
+  //compute the algebraic intersection of a line segment wilth all the segments
+  int algebraic_segment_intersection_number(const Point2d<Rational>& p1,
+                                            const Point2d<Rational>& p2);
+  
   //find all the detailed crossing information
   void find_crossing_data();
   

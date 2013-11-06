@@ -27,7 +27,7 @@ class Rational {
     int n();
     Rational add(const Rational& other);
     Rational div(const Rational& other);
-    Rational inv();
+    Rational inv() const;
     Rational operator+(const Rational& other);
     Rational operator+(int other);
     Rational operator-(const Rational& other);
@@ -35,7 +35,7 @@ class Rational {
     Rational operator-();
     Rational operator/(const Rational& other);
     Rational operator/(int other);
-    Rational operator*(const Rational& other);
+    Rational operator*(const Rational& other) const;
     Rational operator*(int other);
     Rational& operator+=(const Rational& other);
     Rational& operator+=(int other);
@@ -51,7 +51,8 @@ class Rational {
     bool operator==(int other) const;
     
     
-    friend std::ostream& operator<<(std::ostream& os, Rational r);
+  friend std::ostream& operator<<(std::ostream& os, Rational r);
+  friend Rational operator/(int a, const Rational& b);
 
 };
 
