@@ -228,8 +228,8 @@ Surface::Surface(int g, int nb, int verbose) {
   nboundaries = nb;
   ngens = 2*g + nb;
   this->verbose = verbose;
-  cyclic_order.resize(0);;
-  relator.resize(0);;
+  cyclic_order.resize(0);
+  relator.resize(0);
   //go around the normal closed surface part
   for (int i=0; i<genus; ++i) {
     cyclic_order.push_back( 2*i+1 );
@@ -244,6 +244,7 @@ Surface::Surface(int g, int nb, int verbose) {
   //go over the boundary components
   for (int i=0; i<nboundaries; ++i) {
     cyclic_order.push_back( 2*genus+i+1 );
+    cyclic_order.push_back( 2*genus+nb + i + 1 ); //this is the boundary loop
     cyclic_order.push_back( -(2*genus+i+1) );
     relator.push_back( 2*genus+i+1 );
   }
@@ -290,7 +291,12 @@ void Surface::print(std::ostream& os) {
   os << "Relator inverse: " << relator_inverse << "(" << word_from_vector(relator_inverse) << ")\n";
   os << "Gens: ";
   for (int i=1; i<=ngens; ++i) {
-    os << alpha_ind_to_letter(i) << " ";
+    os << i << "(" << alpha_ind_to_letter(i) << ") ";
+  }
+  os << "\n";
+  os << "Boundary loops: ";
+  for (int i=1; i<=nboundaries; ++i) {
+    os << 2*genus + nboundaries + i << "(" << alpha_ind_to_letter(2*genus+nboundaries+i) << ") ";
   }
   os << "\n";
   os << "Cyclic order map: ";

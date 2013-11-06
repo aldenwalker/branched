@@ -544,6 +544,7 @@ int main(int argc, char* argv[]) {
       words.push_back(std::string(argv[i]));
     }
     Surface S(genus, nboundaries, verbose);
+    S.print(std::cout);
     LoopArrangement LA(S, words, verbose);
     std::cout << "After just initializing, " << LA.count_crossings() << " crossings:\n";
     LA.print(std::cout);
