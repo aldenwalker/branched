@@ -1,0 +1,11 @@
+branched
+
+Copyright 2013 by Alden Walker
+
+Released under the GPL
+
+Usage: ./branched -v[n] <genus> <boundaries <loops>
+
+branched finds the minimal configuration of the loops and 
+then produces a cellulation of the surface which is built of 
+cells which are complementary regions.
