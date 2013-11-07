@@ -46,6 +46,7 @@ Rational::Rational(int a, int b) {
   mpq_init(R);
   inited = 1;
   mpq_set_si(R, a,b);
+  mpq_canonicalize(R);
 }
 
 Rational::Rational(mpq_t q) {

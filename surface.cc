@@ -862,7 +862,7 @@ int LoopArrangement::algebraic_segment_intersection_number(const Point2d<Rationa
       continue;
     }
     Point2d<Rational> diff2 = segments[i].end - segments[i].start;
-    ans += (cross_z(diff, diff2) > 0 ? 1 : -1);
+    ans += (cross_z(diff, diff2) < 0 ? 1 : -1);
     //if (cross_z(diff, diff2) > 0) {
     //  std::cout << "They cross positively; winding number now " << ans << "\n";
     //} else {

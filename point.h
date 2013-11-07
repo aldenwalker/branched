@@ -85,4 +85,9 @@ void segment_intersection(const Point2d<T>& p11, const Point2d<T>& p12,
 }
 
 
+template <class T>
+T max(T a, T b) {
+  return (a > b ? a : b);
+}
+
 #endif

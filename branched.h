@@ -71,10 +71,17 @@ struct Cellulation {
   SignedInd next_edge(SignedInd e);
   std::vector<SignedInd> follow_edge(SignedInd e);
   void draw_to_xgraphics(XGraphics& X);
+  int verbose;
   
   //this computes the winding number of the loops around a given cell, relative 
   //to another cell
-  void compute_winding_numbers(LoopArrangement& LA, int relative_to_cell);
+  void compute_winding_numbers(LoopArrangement& LA, int relative_to_cell=0);
+  
+  //this computes a naive lower bound on negative euler characteristic of a surface 
+  //with the desired boundary
+  int chi_upper_bound(LoopArrangement& LA);
+  
+  
 };
 
 #endif

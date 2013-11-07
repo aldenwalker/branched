@@ -212,6 +212,21 @@ void Cellulation::draw_to_xgraphics(XGraphics& X) {
  * this only works for cellulations coming from loop arrangements
  * ***************************************************************************/
 void Cellulation::compute_winding_numbers(LoopArrangement& LA, int relative_to_cell) {
+  if (relative_to_cell == 0) {
+    //if the surface is closed, choose cell 1
+    //if it has boundary, choose one of the cells on the boundary
+    if (LA.S->nboundaries == 0) {
+      relative_to_cell = 1;
+    } else {
+      for (int i=1; i<(int)cells.size(); ++i) {
+        if (cells[i].contains_boundary && cells[i].bd.size() > 1) {
+          relative_to_cell = i;
+          break;
+        }
+      }
+    }
+  }
+  if (verbose > 1) std::cout << "Computing winding number relative to " << relative_to_cell << "\n";
   for (int i=1; i<(int)cells.size(); ++i) {
     cells[i].winding_number = LA.algebraic_segment_intersection_number(cells[relative_to_cell].coords,
                                                                        cells[i].coords);
@@ -219,8 +234,98 @@ void Cellulation::compute_winding_numbers(LoopArrangement& LA, int relative_to_c
   }
 }
   
-
+/*****************************************************************************
+ * compute a naive (upper) bound for Euler characteristic surface with the desired boundary
+ * in this case, every cell appears exactly as many times as its winding number
+ * there's a choice about where to base the winding number computation 
+ * 
+ * In a surface with boundary, it'll always be based at the surface boundary
+ * 
+ * In a surface without boundary, we need to maximize over a 
+ * finite range of possible values (by adding and subtracting the fundamental
+ * class of the surface)
+ * ***************************************************************************/
+int Cellulation::chi_upper_bound(LoopArrangement& LA) {
   
+  //compute winding numbers relative to an arbitrary cell
+  compute_winding_numbers(LA);
+  
+  //if the surface has boundary, figure out what the right offset is 
+  //to make the boundary cell have winding number 0
+  //if it doesn't have boundary, find all possible values for the offset
+  std::vector<int> offset_values(0);
+  if (LA.S->nboundaries > 0) {
+    //find the cell with boundary (and multiple sides)
+    for (int i=1; i<(int)cells.size(); ++i) {
+      if (cells[i].contains_boundary && cells[i].bd.size() > 0) {
+        offset_values.push_back(-cells[i].winding_number);
+        break;
+      }
+    }
+  } else {
+    int max_wn = 0; //we computed relative to a cell, so there is always a 0
+    int min_wn = 0; //same
+    for (int i=0; i<(int)cells.size(); ++i) {
+      if (cells[i].winding_number > max_wn) max_wn = cells[i].winding_number;
+      if (cells[i].winding_number < min_wn) min_wn = cells[i].winding_number;
+    }
+    if (max_wn > abs(min_wn)) { 
+      //range is more positive than negative, so we can only subtract
+      for (int i=0; abs(min_wn-i) <= max_wn; ++i) {
+        offset_values.push_back(-i);
+      }
+    } else {
+      //range is more negative than positive, so we can only add
+      for (int i=0; max_wn+i <= abs(min_wn); ++i) {
+        offset_values.push_back(i);
+      }
+    }
+  }
+  
+  //for each offset value, add it to the winding number for each 
+  //cell, and total up the (naively computed) euler characteristic
+  int largest_chi = 0;
+  for (int off_i = 0; off_i<(int)offset_values.size(); ++off_i) {
+    int off = offset_values[off_i];
+    int cell_chi = 0;
+    for (int i=1; i<(int)cells.size(); ++i) {
+      if (cells[i].contains_boundary) continue;
+      if (verbose > 2) std::cout << "cell " << i << " contributes " << abs(cells[i].winding_number + off) << "\n";
+      cell_chi += abs(cells[i].winding_number + off);
+    }
+    if (verbose > 2) std::cout << "Total cells: " << cell_chi << "\n";
+    int edge_chi = 0;
+    for (int i=1; i<(int)edges.size(); ++i) {
+      int edge_val = max( abs(cells[edges[i].in_bd_pos[0]].winding_number + off),
+                          abs(cells[edges[i].in_bd_neg[0]].winding_number + off) );
+      edge_chi += edge_val;
+      if (verbose > 2) std::cout << "edge " << i << " contributes " << edge_val << "\n";
+    }
+    if (verbose > 2) std::cout << "Total edges: " << edge_chi << "\n";
+    int vertex_chi = 0;
+    for (int i=1; i<(int)vertices.size(); ++i) {
+      int max_wn = 0;
+      for (int j=0; j<(int)vertices[i].in_bd_of.size(); ++j) {
+        int e = vertices[i].in_bd_of[j];
+        int c = (e>0 ? edges[e].in_bd_neg[0] : edges[-e].in_bd_pos[0]);
+        int wn = cells[c].winding_number + off;
+        if (abs(wn) > max_wn) max_wn = abs(wn);
+      }
+      if (verbose > 2) std::cout << "vertex " << i << " contributes " << max_wn << "\n";
+      vertex_chi += max_wn;
+    }
+    if (verbose > 2) std::cout << "Total vertices: " << vertex_chi << "\n";
+    int putative_chi = vertex_chi - edge_chi + cell_chi;
+    if (verbose > 1) {
+      std::cout << "Computed potential chi = " << putative_chi << " with offset " << off << "\n";
+    }
+    if (putative_chi > largest_chi || largest_chi == 0) {
+      largest_chi = putative_chi;
+    }
+  }
+  return largest_chi;
+  
+}
   
   
   
@@ -283,12 +388,19 @@ int main(int argc, char* argv[]) {
   LA.show();
   
   Cellulation C = LA.cellulation_from_loops();
+  C.verbose = verbose;
   
   //compute the winding numbers
-  C.compute_winding_numbers(LA, 1);
+  C.compute_winding_numbers(LA);
   
   std::cout << "Cellulation from loops:\n";
   C.print(std::cout);
+  
+  int chi_ub = C.chi_upper_bound(LA);
+  Rational scl_lb(-chi_ub, 2);
+  std::cout << "Naive upper bound on chi: " << chi_ub << "\n";
+  std::cout << "Implies lower bound on scl: " << scl_lb << "\n";
+  
   LA.show(&C);
   
   return 0;
