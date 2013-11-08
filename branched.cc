@@ -149,13 +149,34 @@ std::vector<SignedInd> Cellulation::follow_edge(SignedInd e) {
  ****************************************************************************/
 void Cellulation::draw_to_xgraphics(XGraphics& X) {
 
+  bool gray_from_winding = false;
+  int wn_max = 0;
+  if (cells[1].computed_winding_number) {
+    gray_from_winding = true;
+    for (int i=1; i<(int)cells.size(); ++i) {
+      if (abs(cells[i].winding_number) > wn_max) {
+        wn_max = abs(cells[i].winding_number);
+      }
+    }
+  }    
+  
   //draw the cells; make them random gray levels
   srand(2);
   for (int i=1; i<(int)cells.size(); ++i) {
     if (cells[i].sign < 0 || cells[i].contains_boundary) continue;
-    double rand_gray_level = (double)rand()/(double)RAND_MAX;
-    rand_gray_level = rand_gray_level*0.3 + 0.5;
-    int col = X.get_rgb_color(rand_gray_level, rand_gray_level, rand_gray_level);
+    double gray_level;
+    if (gray_from_winding) {
+      if (cells[i].winding_number == 0) {
+        gray_level = 1;
+      } else {
+        gray_level = 0.5 + 0.45*(1-(double)abs(cells[i].winding_number)/(double)wn_max);
+      }
+    } else {
+      double rand_gray_level = (double)rand()/(double)RAND_MAX;
+      gray_level = rand_gray_level*0.3 + 0.5;
+    }
+      
+    int col = X.get_rgb_color(gray_level, gray_level, gray_level);
     //std::cout << "Random gray level: " << rand_gray_level << "\n";
     //std::cout << "Returned color: " << col << "\n";
     std::vector<Point2d<float> > points(0);
@@ -184,14 +205,14 @@ void Cellulation::draw_to_xgraphics(XGraphics& X) {
   for (int i=1; i<(int)edges.size(); ++i) {
     temp1 = Point2d<float>(edges[i].start_pos.x.get_d(), edges[i].start_pos.y.get_d());
     temp2 = Point2d<float>(edges[i].end_pos.x.get_d(), edges[i].end_pos.y.get_d());
-    std::stringstream edge_label_s;
-    edge_label_s << i;
-    std::string edge_label = edge_label_s.str();
-    X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, edge_label);
+    //std::stringstream edge_label_s;
+    //edge_label_s << i;
+    //std::string edge_label = edge_label_s.str();
+    X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, std::string(""));//edge_label);
     if (edges[i].two_sided) {
       temp1 = Point2d<float>(edges[i].start_neg.x.get_d(), edges[i].start_neg.y.get_d());
       temp2 = Point2d<float>(edges[i].end_neg.x.get_d(), edges[i].end_neg.y.get_d());
-      X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, edge_label);
+      X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, std::string(""));//edge_label);
     }
   }
 
@@ -297,7 +318,7 @@ int Cellulation::chi_upper_bound(LoopArrangement& LA) {
       if (verbose > 2) std::cout << "cell " << i << " contributes " << abs(cells[i].winding_number + off) << "\n";
       cell_chi += abs(cells[i].winding_number + off);
     }
-    if (verbose > 2) std::cout << "Total cells: " << cell_chi << "\n";
+    if (verbose > 1) std::cout << "Total cells: " << cell_chi << "\n";
     int edge_chi = 0;
     for (int i=1; i<(int)edges.size(); ++i) {
       int edge_val = max( abs(cells[edges[i].in_bd_pos[0]].winding_number + off),
@@ -305,7 +326,7 @@ int Cellulation::chi_upper_bound(LoopArrangement& LA) {
       edge_chi += edge_val;
       if (verbose > 2) std::cout << "edge " << i << " contributes " << edge_val << "\n";
     }
-    if (verbose > 2) std::cout << "Total edges: " << edge_chi << "\n";
+    if (verbose > 1) std::cout << "Total edges: " << edge_chi << "\n";
     int vertex_chi = 0;
     for (int i=1; i<(int)vertices.size(); ++i) {
       int max_wn = 0;
@@ -328,7 +349,7 @@ int Cellulation::chi_upper_bound(LoopArrangement& LA) {
       if (verbose > 2) std::cout << "vertex " << i << " contributes " << vert_val << "\n";
       vertex_chi += vert_val;
     }
-    if (verbose > 2) std::cout << "Total vertices: " << vertex_chi << "\n";
+    if (verbose > 1) std::cout << "Total vertices: " << vertex_chi << "\n";
     int putative_chi = vertex_chi - edge_chi + cell_chi;
     if (verbose > 1) {
       std::cout << "Computed potential chi = " << putative_chi << " with offset " << off << "\n";
@@ -340,10 +361,6 @@ int Cellulation::chi_upper_bound(LoopArrangement& LA) {
   return largest_chi;
   
 }
-  
-  
-  
-  
   
   
   
@@ -376,9 +393,9 @@ int main(int argc, char* argv[]) {
   }
   if (demo) {
     words.resize(3);
-    words[0] = std::string("efEFabbca");
-    words[1] = std::string("ababaccdcdeaea");
-    words[2] = std::string("aBeDfcbaEd");
+    words[0] = std::string("cdfABFaeCFc");
+    words[1] = std::string("aDfAEBCDDedBE");
+    words[2] = std::string("bbddbD");
     genus = 3;
     nboundaries = 0;
   } else {
