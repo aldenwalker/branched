@@ -18,8 +18,11 @@ graphics.o : graphics.cc
 rational.o : rational.cc
 	$(CC) $(CFLAGS) $(IFLAGS) -c rational.cc
 
-branched : branched.o surface.o graphics.o rational.o
-	$(CC) -o branched branched.o surface.o graphics.o rational.o $(LFLAGS)
+perm.o : perm.cc
+	$(CC) $(CFLAGS) $(IFLAGS) -c perm.cc
+
+branched : branched.o surface.o graphics.o rational.o perm.o
+	$(CC) -o branched branched.o surface.o graphics.o rational.o perm.o $(LFLAGS)
 
 clean : 
 	rm *.o

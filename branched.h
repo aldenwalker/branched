@@ -8,6 +8,7 @@
 #include "point.h"
 #include "rational.h"
 #include "graphics.h"
+#include "perm.h"
 
 
 //forward declaration of looparrangement
@@ -41,7 +42,7 @@ struct Edge {
   std::vector<SignedInd> in_bd_neg;
   SignedInd& operator[](int i);
 };
-std::ostream& operator<<(std::ostream& os, Edge& e);
+std::ostream& operator<<(std::ostream& os, const Edge& e);
 
 struct Triangle {
   Triangle();
@@ -80,8 +81,45 @@ struct Cellulation {
   //this computes a naive lower bound on negative euler characteristic of a surface 
   //with the desired boundary
   int chi_upper_bound(LoopArrangement& LA);
-  
-  
 };
+
+
+struct BranchedSurface {
+  const Cellulation* C;
+  std::vector<std::pair<int, int> > cell_coefficients;
+  bool eperms_valid;
+  
+  //the edge pdperms record the pdperm that is applied as we go 
+  //from the negative side to the positive side
+  //i.e. it is the pdperm applied as we rotate around the vertex 
+  //counterclockwise and the edge is pointing out
+  std::vector<PDPerm> edge_pdperms;
+  
+  BranchedSurface(const Cellulation* const C);
+  BranchedSurface(const Cellulation* const C, const std::vector<std::pair<int, int> >& cc);
+  
+  //initialize the edge perms to something arbitrary
+  void init_edge_pdperms();
+  
+  //compute the euler characteristic of a gluing
+  int euler_char();
+  
+  //the only issue in computing the euler characteristic is computing the 
+  //number of vertices.  this function computes how many vertices live 
+  //over the given vertex
+  int num_vertices_over_vertex(int vert);
+  
+  //this optimizes over all gluings to obtain the best possible
+  void find_minimal_gluing();
+  
+  //print the data as text
+  void print(std::ostream& os);
+};
+
+//get the sum of a pair
+int sum(std::pair<int, int>& p);
+
+//print a pair
+std::ostream& operator<<(std::ostream& os, std::pair<int, int>& p);
 
 #endif

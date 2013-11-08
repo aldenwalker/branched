@@ -58,7 +58,7 @@ SignedInd& Edge::operator[](int i) {
   return bd[i];
 }
 
-std::ostream& operator<<(std::ostream& os, Edge& e) {
+std::ostream& operator<<(std::ostream& os, const Edge& e) {
   os << "E(" << e.start << "," << e.end << "); {{";
   for (int i=0; i<(int)e.in_bd_pos.size(); ++i) {
     os << e.in_bd_pos[i];
@@ -205,14 +205,16 @@ void Cellulation::draw_to_xgraphics(XGraphics& X) {
   for (int i=1; i<(int)edges.size(); ++i) {
     temp1 = Point2d<float>(edges[i].start_pos.x.get_d(), edges[i].start_pos.y.get_d());
     temp2 = Point2d<float>(edges[i].end_pos.x.get_d(), edges[i].end_pos.y.get_d());
-    //std::stringstream edge_label_s;
-    //edge_label_s << i;
-    //std::string edge_label = edge_label_s.str();
-    X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, std::string(""));//edge_label);
+    std::stringstream edge_label_s;
+    edge_label_s << i;
+    std::string edge_label = edge_label_s.str();
+    //X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, std::string(""));//edge_label);
+    X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, edge_label);
     if (edges[i].two_sided) {
       temp1 = Point2d<float>(edges[i].start_neg.x.get_d(), edges[i].start_neg.y.get_d());
       temp2 = Point2d<float>(edges[i].end_neg.x.get_d(), edges[i].end_neg.y.get_d());
-      X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, std::string(""));//edge_label);
+      //X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, std::string(""));//edge_label);
+      X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, edge_label);
     }
   }
 
@@ -361,8 +363,111 @@ int Cellulation::chi_upper_bound(LoopArrangement& LA) {
   return largest_chi;
   
 }
+
+
+
+
+/*****************************************************************************
+ * construct a branched surface
+ * ***************************************************************************/
+BranchedSurface::BranchedSurface(const Cellulation* const C) {
+  eperms_valid = false;
+  this->C = C;
+  cell_coefficients = std::vector<std::pair<int, int> >(C->cells.size(), std::make_pair(0,0));
+  if (C->cells[1].computed_winding_number) { //use the winding numbers why not
+    for (int i=1; i<(int)C->cells.size(); ++i) {
+      int wn = C->cells[i].winding_number;
+      if (wn >= 0) {
+        cell_coefficients[i].first = wn;
+      } else {
+        cell_coefficients[i].second = -wn;
+      }
+    }
+  }
+}
+
+BranchedSurface::BranchedSurface(const Cellulation* const C, const std::vector<std::pair<int, int> >& cc) {
+  eperms_valid = false;
+  this->C = C;
+  cell_coefficients = cc;
+}
+
+int sum(std::pair<int, int>& p) {
+  return p.first + p.second;
+}
+
+std::ostream& operator<<(std::ostream& os, std::pair<int, int>& p) {
+  return os << "{" << p.first << "," << p.second << "}";
+}
+
+/*****************************************************************************
+ * initialize the edge perms to a default
+ * ***************************************************************************/
+void BranchedSurface::init_edge_pdperms() {
+  //set all the edge pdperms to be the uniform one (identify the low indices, 
+  //and leave the top alone
+  edge_pdperms.resize(C->edges.size());
+  for (int i=1; i<(int)C->edges.size(); ++i) {
+    int neg_cell = C->edges[i].in_bd_neg[0];
+    int pos_cell = C->edges[i].in_bd_pos[0];
+    edge_pdperms[i] = PDPerm(cell_coefficients[neg_cell].first +
+                             cell_coefficients[pos_cell].second, 
+                             cell_coefficients[pos_cell].first + 
+                             cell_coefficients[neg_cell].second);
+  }
+}
+
+
+/*****************************************************************************
+ * compute the euler characteristic of the current gluing
+ * ***************************************************************************/
+int BranchedSurface::euler_char() {
+  return 0;
+}
+
+/*****************************************************************************
+ * use the gluing to determine the number of vertices over the given vertex
+ * ***************************************************************************/
+int BranchedSurface::num_vertices_over_vertex(int vert) {
   
-  
+  return 0;
+}
+
+/*****************************************************************************
+ * optimize over all gluings
+ * ***************************************************************************/
+void BranchedSurface::find_minimal_gluing() {
+}
+
+/******************************************************************************
+ * print out a branched surface
+ * ****************************************************************************/
+void BranchedSurface::print(std::ostream& os) {
+  os << "Branched surface on cellulation with " << C->vertices.size()-1 << " vertices, " 
+                                                << C->edges.size()-1 << " edges, and " 
+                                                << C->cells.size()-1 << " cells\n";
+  os << "Cell coefficients:\n";
+  for (int i=1; i<(int)C->cells.size(); ++i) {
+    os << "(" << i << ": " << cell_coefficients[i] << "), ";
+  }
+  os << "\n";
+  os << "Edge PDPerms:\n";
+  for (int i=1; i<(int)C->edges.size(); ++i) {
+    os << i << ": (" << C->edges[i] << ") " << edge_pdperms[i] << "\n";
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
   
   
 int main(int argc, char* argv[]) {
@@ -431,8 +536,12 @@ int main(int argc, char* argv[]) {
   Rational scl_lb(-chi_ub, 2);
   std::cout << "Naive upper bound on chi: " << chi_ub << "\n";
   std::cout << "Implies lower bound on scl: " << scl_lb << "\n";
-  
   LA.show(&C);
+  
+  BranchedSurface BS(&C);
+  BS.init_edge_pdperms();
+  BS.print(std::cout);
+  
   
   return 0;
 
