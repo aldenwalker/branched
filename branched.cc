@@ -250,6 +250,8 @@ int Cellulation::chi_upper_bound(LoopArrangement& LA) {
   //compute winding numbers relative to an arbitrary cell
   compute_winding_numbers(LA);
   
+  if (verbose > 1) std::cout << "Starting to compute chi upper bound\n";
+  
   //if the surface has boundary, figure out what the right offset is 
   //to make the boundary cell have winding number 0
   //if it doesn't have boundary, find all possible values for the offset
@@ -265,7 +267,7 @@ int Cellulation::chi_upper_bound(LoopArrangement& LA) {
   } else {
     int max_wn = 0; //we computed relative to a cell, so there is always a 0
     int min_wn = 0; //same
-    for (int i=0; i<(int)cells.size(); ++i) {
+    for (int i=1; i<(int)cells.size(); ++i) {
       if (cells[i].winding_number > max_wn) max_wn = cells[i].winding_number;
       if (cells[i].winding_number < min_wn) min_wn = cells[i].winding_number;
     }
@@ -281,6 +283,8 @@ int Cellulation::chi_upper_bound(LoopArrangement& LA) {
       }
     }
   }
+  
+  if (verbose > 1) std::cout << "Offset values: " << offset_values << "\n";
   
   //for each offset value, add it to the winding number for each 
   //cell, and total up the (naively computed) euler characteristic
@@ -305,14 +309,24 @@ int Cellulation::chi_upper_bound(LoopArrangement& LA) {
     int vertex_chi = 0;
     for (int i=1; i<(int)vertices.size(); ++i) {
       int max_wn = 0;
+      bool has_neg = false;
+      bool has_pos = false;
       for (int j=0; j<(int)vertices[i].in_bd_of.size(); ++j) {
         int e = vertices[i].in_bd_of[j];
         int c = (e>0 ? edges[e].in_bd_neg[0] : edges[-e].in_bd_pos[0]);
         int wn = cells[c].winding_number + off;
+        if (wn < 0) has_neg = true;
+        if (wn > 0) has_pos = true;
         if (abs(wn) > max_wn) max_wn = abs(wn);
       }
-      if (verbose > 2) std::cout << "vertex " << i << " contributes " << max_wn << "\n";
-      vertex_chi += max_wn;
+      int vert_val;
+      if (has_pos && has_neg) {
+        vert_val = 2;
+      } else {
+        vert_val = max_wn;
+      }
+      if (verbose > 2) std::cout << "vertex " << i << " contributes " << vert_val << "\n";
+      vertex_chi += vert_val;
     }
     if (verbose > 2) std::cout << "Total vertices: " << vertex_chi << "\n";
     int putative_chi = vertex_chi - edge_chi + cell_chi;
