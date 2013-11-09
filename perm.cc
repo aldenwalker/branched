@@ -7,53 +7,24 @@
  * partially defined permuations
  * ****************************************************************************/
 PDPerm::PDPerm() {
-  source_size = dest_size = 0;
+  smin = smax = szero = dmin = dmax = dzero = 0;
   map.resize(0);
   inverse_map.resize(0);
 }
 
-PDPerm::PDPerm(int n, int m) {
-  source_size = n;
-  dest_size = m;
-  map.resize(n);
-  inverse_map.resize(m);
-  int nm_min = (n < m ? n : m);
-  for (int i=0; i<nm_min; ++i) {
-    map[i] = inverse_map[i] = i;
-  }
-  if (n<m) {
-    for (int i=n; i<m; ++i) {
-      inverse_map[i] = -1;
-    }
-  } else {
-    for (int i=m; i<n; ++i) {
-      map[i] = -1;
-    }
-  }
+PDPerm::PDPerm(int smi, int sma, int dmi, int dma) {
+  smin = smi;
+  smax = sma;
+  dmin = dmi;
+  dmax = dma;
+  map = std::vector<int>(smax-smin-1, 0);
+  inverse_map = std::vector<int>(dmax-dmin-1, 0);
+  if (dmax-dmin > smax-smin) {
+    for (int i=smin; i<=smax; ++i) {
+      if (i==0) continue;
+    
 }
 
-PDPerm::PDPerm(int n, int m, const std::vector<int>& map, bool is_inverse_map) {
-  if (is_inverse_map) {
-    source_size = m;
-    dest_size = n;
-    inverse_map = map;
-    this->map = std::vector<int>(source_size, -1);
-    for (int i=0; i<dest_size; ++i) {
-      if (this->inverse_map[i] == -1) continue;
-      this->map[inverse_map[i]] = i;
-    }
-      
-  } else {
-    source_size = n;
-    dest_size = m;
-    this->map = map;
-    inverse_map = std::vector<int>(dest_size, -1);
-    for (int i=0; i<source_size; ++i) {
-      if (this->map[i] == -1) continue;
-      inverse_map[this->map[i]] = i;
-    }
-  }
-}
   
 std::ostream& operator<<(std::ostream& os, const PDPerm& p) {
   os << "PDPerm([";

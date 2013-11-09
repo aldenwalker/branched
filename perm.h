@@ -1,23 +1,24 @@
-#ifndef PERM_H
-#define PERM_H
+#ifndef __PERM_H__
+#define __PERM_H__
 
 #include <vector>
 #include <iostream>
 
 /******************************************************************************
- * This class is for functions which identify a set with a larger set
- * i.e. injective functions [n]->[m], where m>=n.  Or, equivalently, 
- * partially-defined injective surjective functions [m]->[n]
+ * these functions identify a range {smin, ..., -1, 1, ..., smax} with 
+ * {dmin, ..., -1, 1, ..., dmax}, where all the things in the smaller 
+ * range are associated with things in the larger range, but things in the 
+ * larger range might not be glued to anything (they are set to 0)
  * ***************************************************************************/
 struct PDPerm {
-  int source_size;
-  int dest_size;
+  int smin, smax, szero;
+  int dmin, dmax, dzero;
   std::vector<int> map;
   std::vector<int> inverse_map;
   
   PDPerm();
-  PDPerm(int n, int m);
-  PDPerm(int n, int m, const std::vector<int>& map, bool is_inverse_map=false);
+  PDPerm(int smi, int sma, int dmi, int dma);
+  
   //int ap(int x);
   //int inv_ap(int x);
 };
