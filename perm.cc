@@ -29,6 +29,8 @@ PDPerm::PDPerm(int smi, int sma, int dmi, int dma) {
     if (map_pos > smax || imap_pos > dmax) break;
     map_at(map_pos) = imap_pos;
     imap_at(imap_pos) = map_pos;
+    ++map_pos;
+    ++imap_pos;
   } 
 }
 
@@ -61,6 +63,13 @@ std::ostream& operator<<(std::ostream& os, const PDPerm& p) {
   }
   if (p.map.size()>0) {
     os << p.map[p.map.size()-1];
+  }
+  os << "],[";
+  for (int i=0; i<(int)p.inverse_map.size()-1; ++i) {
+    os << p.inverse_map[i] << ",";
+  }
+  if (p.inverse_map.size()>0) {
+    os << p.inverse_map[p.inverse_map.size()-1];
   }
   os << "])";
   return os;

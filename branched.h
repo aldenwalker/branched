@@ -89,6 +89,7 @@ struct BranchedSurface {
   const Cellulation* C;
   std::vector<std::pair<int, int> > cell_coefficients;
   bool eperms_valid;
+  int verbose;
   
   //the edge pdperms record the pdperm that is applied as we go 
   //from the negative side to the positive side
@@ -96,8 +97,8 @@ struct BranchedSurface {
   //counterclockwise and the edge is pointing out
   std::vector<PDPerm> edge_pdperms;
   
-  BranchedSurface(const Cellulation* const C);
-  BranchedSurface(const Cellulation* const C, const std::vector<std::pair<int, int> >& cc);
+  BranchedSurface(const Cellulation* const C, int verbose=1);
+  BranchedSurface(const Cellulation* const C, const std::vector<std::pair<int, int> >& cc, int verbose=1);
   
   //initialize the edge perms to something arbitrary
   void init_edge_pdperms();

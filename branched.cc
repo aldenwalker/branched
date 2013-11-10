@@ -370,9 +370,10 @@ int Cellulation::chi_upper_bound(LoopArrangement& LA) {
 /*****************************************************************************
  * construct a branched surface
  * ***************************************************************************/
-BranchedSurface::BranchedSurface(const Cellulation* const C) {
+BranchedSurface::BranchedSurface(const Cellulation* const C, int verbose) {
   eperms_valid = false;
   this->C = C;
+  this->verbose = verbose;
   cell_coefficients = std::vector<std::pair<int, int> >(C->cells.size(), std::make_pair(0,0));
   if (C->cells[1].computed_winding_number) { //use the winding numbers why not
     for (int i=1; i<(int)C->cells.size(); ++i) {
@@ -386,10 +387,13 @@ BranchedSurface::BranchedSurface(const Cellulation* const C) {
   }
 }
 
-BranchedSurface::BranchedSurface(const Cellulation* const C, const std::vector<std::pair<int, int> >& cc) {
+BranchedSurface::BranchedSurface(const Cellulation* const C, 
+                                 const std::vector<std::pair<int, int> >& cc,
+                                 int verbose) {
   eperms_valid = false;
   this->C = C;
   cell_coefficients = cc;
+  this->verbose = verbose;
 }
 
 int sum(std::pair<int, int>& p) {
@@ -410,9 +414,14 @@ void BranchedSurface::init_edge_pdperms() {
   for (int i=1; i<(int)C->edges.size(); ++i) {
     int neg_cell = C->edges[i].in_bd_neg[0];
     int pos_cell = C->edges[i].in_bd_pos[0];
-    edge_pdperms[i] = PDPerm(cell_coefficients[pos_cell].second,  //cells on the right that contain me negatively
+    if (verbose > 2) std::cout << "Edge " << i;
+    if (verbose > 2) std::cout << " about to initialize a PDPerm( " << cell_coefficients[pos_cell].second << ","
+                                                                   << cell_coefficients[neg_cell].first  << ","
+                                                                   << cell_coefficients[neg_cell].second << ","
+                                                                   << cell_coefficients[pos_cell].first << " )\n";
+    edge_pdperms[i] = PDPerm(-cell_coefficients[pos_cell].second,  //cells on the right that contain me negatively
                              cell_coefficients[neg_cell].first,   //cells on the left containing positively
-                             cell_coefficients[neg_cell].second,  //cell on the right containing negatively
+                             -cell_coefficients[neg_cell].second,  //cell on the right containing negatively
                              cell_coefficients[pos_cell].first);  //cells on the left containing positively
   }
 }
@@ -426,14 +435,17 @@ int BranchedSurface::chi() {
   for (int i=1; i<(int)cell_coefficients.size(); ++i) {
     ncells += cell_coefficients[i].first + cell_coefficients[i].second;
   }
+  if (verbose>1) std::cout << "I found there were " << ncells << " cells\n";
   int nedges = 0;
   for (int i=1; i<(int)C->edges.size(); ++i) {
     nedges += edge_pdperms[i].max_size();
   }
+  if (verbose>1) std::cout << "I found there were " << nedges << " edges\n";
   int nverts = 0;
   for (int i=1; i<(int)C->vertices.size(); ++i) {
     nverts += num_vertices_over_vertex(i);
   }
+  if (verbose>1) std::cout << "I found there were " << nverts << " vertices\n";
   return nverts - nedges + ncells;
 }
 
@@ -508,7 +520,7 @@ int BranchedSurface::num_vertices_over_vertex(int vi) {
       edges_visited[i] = DSList<bool>( edge_pdperms[-ei].dmin, edge_pdperms[-ei].dmax, false);
     }
   }
-  
+  if (verbose > 2) std::cout << "Visiting vertex " << vi << "\n";
   int num_cycles = 0; //the number of cycles (including boundary cycles)
   int twice_num_extra_vertices_needed=0; //the number of boundary cycles which don't match up (and must be glued)
   while (true) {
@@ -544,7 +556,7 @@ int BranchedSurface::num_vertices_over_vertex(int vi) {
     if (pos_dir_boundary%2 != neg_dir_boundary%2) ++twice_num_extra_vertices_needed;
     ++num_cycles;
   }
-  
+  if (verbose > 2) std::cout << "I found " << num_cycles << " cycles and " << twice_num_extra_vertices_needed/2 << " extra vertices\n";
   if (twice_num_extra_vertices_needed%2 != 0) std::cout << "Extra vertex count weird?\n";
   
   return num_cycles - (twice_num_extra_vertices_needed/2);
@@ -655,10 +667,15 @@ int main(int argc, char* argv[]) {
   std::cout << "Implies lower bound on scl: " << scl_lb << "\n";
   LA.show(&C);
   
-  BranchedSurface BS(&C);
+  BranchedSurface BS(&C, verbose);
+  std::cout << "Initialized branched surface\n";
   BS.init_edge_pdperms();
+  std::cout << "Initialized edge perms\n";
   BS.print(std::cout);
   
+  std::cout << "Finding chi:\n";
+  int chi = BS.chi();
+  std::cout << "chi = " << chi << "\n";
   
   return 0;
 
