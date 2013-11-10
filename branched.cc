@@ -410,10 +410,10 @@ void BranchedSurface::init_edge_pdperms() {
   for (int i=1; i<(int)C->edges.size(); ++i) {
     int neg_cell = C->edges[i].in_bd_neg[0];
     int pos_cell = C->edges[i].in_bd_pos[0];
-    edge_pdperms[i] = PDPerm(cell_coefficients[neg_cell].first +
-                             cell_coefficients[pos_cell].second, 
-                             cell_coefficients[pos_cell].first + 
-                             cell_coefficients[neg_cell].second);
+    edge_pdperms[i] = PDPerm(cell_coefficients[pos_cell].second,  //cells on the right that contain me negatively
+                             cell_coefficients[neg_cell].first,   //cells on the left containing positively
+                             cell_coefficients[neg_cell].second,  //cell on the right containing negatively
+                             cell_coefficients[pos_cell].first);  //cells on the left containing positively
   }
 }
 
@@ -421,16 +421,133 @@ void BranchedSurface::init_edge_pdperms() {
 /*****************************************************************************
  * compute the euler characteristic of the current gluing
  * ***************************************************************************/
-int BranchedSurface::euler_char() {
-  return 0;
+int BranchedSurface::chi() {
+  int ncells = 0;
+  for (int i=1; i<(int)cell_coefficients.size(); ++i) {
+    ncells += cell_coefficients[i].first + cell_coefficients[i].second;
+  }
+  int nedges = 0;
+  for (int i=1; i<(int)C->edges.size(); ++i) {
+    nedges += edge_pdperms[i].max_size();
+  }
+  int nverts = 0;
+  for (int i=1; i<(int)C->vertices.size(); ++i) {
+    nverts += num_vertices_over_vertex(i);
+  }
+  return nverts - nedges + ncells;
+}
+
+
+/******************************************************************************
+ * follow the glued edges around to figure out where the boundary is
+ * direction = 1 means cross right to left in the cyclic order on the vertex
+ * when we are "at" an edge, it means we're sitting immediately to the 
+ * right in the cyclic order, so if we're going positively, 
+ * we apply the edge pdperm as we move away
+ * if we're going negatively, it means we apply the edge pdperm as 
+ * we arrive at the edge
+ *****************************************************************************/
+void BranchedSurface::follow_gluing_around_vertex(const Vertex& vert, 
+                                                  int start_edge, 
+                                                  int start_level, 
+                                                  int direction, 
+                                                  std::vector<DSList<bool> >& edges_visited, 
+                                                  int& boundary) {
+  int nedges = vert.in_bd_of.size();
+  int current_edge = start_edge;
+  int current_level = start_level;
+  int next_edge, next_level;
+  int global_ei = vert.in_bd_of[current_edge];
+  int next_global_ei;
+  while (true) {
+    if (direction > 0) {
+      next_level = (global_ei > 0 
+                         ? edge_pdperms[global_ei].map_at(current_level) 
+                         : edge_pdperms[-global_ei].imap_at(current_level) );
+      edges_visited[current_edge][current_level] = true;
+      next_edge = (next_level > 0 ? pos_mod(current_edge+1, nedges) 
+                                  : pos_mod(current_edge-1, nedges) );
+      next_global_ei = vert.in_bd_of[next_edge];
+    } else {
+      next_edge = (current_level > 0 ? pos_mod(current_edge-1, nedges) 
+                                     : pos_mod(current_edge+1, nedges) );
+      next_global_ei = vert.in_bd_of[next_edge];
+      edges_visited[current_edge][current_level] = true;
+      next_level = (next_global_ei > 0 
+                      ? edge_pdperms[next_global_ei].imap_at(current_level) 
+                      : edge_pdperms[-next_global_ei].map_at(current_level) );
+    }
+    if (next_edge == start_edge && next_level == start_level) {
+      boundary = -1;
+      return;
+    }
+    if (next_level == 0) { //we've reached the boundary
+      boundary = (direction > 0 ? current_edge : next_edge);
+      return;
+    }
+    current_edge = next_edge;
+    current_level = next_level;
+    global_ei = next_global_ei;
+  }
 }
 
 /*****************************************************************************
  * use the gluing to determine the number of vertices over the given vertex
  * ***************************************************************************/
-int BranchedSurface::num_vertices_over_vertex(int vert) {
+int BranchedSurface::num_vertices_over_vertex(int vi) {
+  const Vertex& vert = C->vertices[vi];
+  int nedges = vert.in_bd_of.size();
+  //this vector records whether we've gone over the edge
+  //we go over an edge when we touch the right side (regardless of edge direction)
+  std::vector<DSList<bool> > edges_visited(nedges);
+  for (int i=0; i<nedges; ++i) {
+    int ei = vert.in_bd_of[i];
+    if (ei > 0) {
+      edges_visited[i] = DSList<bool>( edge_pdperms[ei].smin, edge_pdperms[ei].smax, false );
+    } else {
+      edges_visited[i] = DSList<bool>( edge_pdperms[-ei].dmin, edge_pdperms[-ei].dmax, false);
+    }
+  }
   
-  return 0;
+  int num_cycles = 0; //the number of cycles (including boundary cycles)
+  int twice_num_extra_vertices_needed=0; //the number of boundary cycles which don't match up (and must be glued)
+  while (true) {
+    //find an edge that we haven't explored
+    int start_edge=-1;
+    int start_level=0;
+    for (int i=0; i<nedges; ++i) {
+      for (int j=edges_visited[i].min(); j<=edges_visited[i].max(); ++j) {
+        if (j==0) continue;
+        if (edges_visited[i][j] == false) {
+          start_level = j; break;
+        }
+      }
+      if (start_level != 0) {
+        start_edge = i; break;
+      }
+    }
+    if (start_edge == -1) break;
+    
+    int pos_dir_boundary; //this records the edge index that is the boundary
+    follow_gluing_around_vertex(vert, start_edge, start_level, 1, edges_visited, pos_dir_boundary);
+    
+    if (pos_dir_boundary == -1) { //if there's no boundary, there's just a cycle
+      ++num_cycles;
+      continue;
+    }
+    
+    int neg_dir_boundary;
+    follow_gluing_around_vertex(vert, start_edge, start_level, -1, edges_visited, neg_dir_boundary);
+    
+    //this only works for a vertex of valence 4!
+    if (vert.in_bd_of.size() != 4) std::cout << "Vertex has valence > 4?\n";
+    if (pos_dir_boundary%2 != neg_dir_boundary%2) ++twice_num_extra_vertices_needed;
+    ++num_cycles;
+  }
+  
+  if (twice_num_extra_vertices_needed%2 != 0) std::cout << "Extra vertex count weird?\n";
+  
+  return num_cycles - (twice_num_extra_vertices_needed/2);
 }
 
 /*****************************************************************************

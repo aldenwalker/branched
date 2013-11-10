@@ -9,15 +9,24 @@
  * {dmin, ..., -1, 1, ..., dmax}, where all the things in the smaller 
  * range are associated with things in the larger range, but things in the 
  * larger range might not be glued to anything (they are set to 0)
+ *
+ * the map and inverse map are just vectors, so there's some annoyance 
+ * in figuring out what index in the list stores what value
+ * the map_at and imap_at functions do this
  * ***************************************************************************/
 struct PDPerm {
-  int smin, smax, szero;
-  int dmin, dmax, dzero;
+  int smin, smax, asmin;
+  int dmin, dmax, admin;
   std::vector<int> map;
   std::vector<int> inverse_map;
   
   PDPerm();
   PDPerm(int smi, int sma, int dmi, int dma);
+  
+  int& map_at(int x);
+  int& imap_at(int x);
+  
+  int max_size();
   
   //int ap(int x);
   //int inv_ap(int x);

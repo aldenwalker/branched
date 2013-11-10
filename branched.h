@@ -9,6 +9,7 @@
 #include "rational.h"
 #include "graphics.h"
 #include "perm.h"
+#include "dslist.h"
 
 
 //forward declaration of looparrangement
@@ -102,12 +103,20 @@ struct BranchedSurface {
   void init_edge_pdperms();
   
   //compute the euler characteristic of a gluing
-  int euler_char();
+  int chi();
+  
+  //technical function to follow stuff around and record things
+  //if direction is 1, it means that we cross all edges going 
+  //right to left in the cyclic order on the vertex 
+  //(so if the edge is incoming, it means we apply the PDPerm inverse)
+  void follow_gluing_around_vertex(const Vertex& vert, int start_edge, int start_level, 
+                                   int direction, std::vector<DSList<bool> >& edges_visited, 
+                                   int& boundary);
   
   //the only issue in computing the euler characteristic is computing the 
   //number of vertices.  this function computes how many vertices live 
   //over the given vertex
-  int num_vertices_over_vertex(int vert);
+  int num_vertices_over_vertex(int vi);
   
   //this optimizes over all gluings to obtain the best possible
   void find_minimal_gluing();

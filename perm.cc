@@ -7,25 +7,53 @@
  * partially defined permuations
  * ****************************************************************************/
 PDPerm::PDPerm() {
-  smin = smax = szero = dmin = dmax = dzero = 0;
+  smin = smax = asmin = dmin = dmax = admin = 0;
   map.resize(0);
   inverse_map.resize(0);
 }
 
 PDPerm::PDPerm(int smi, int sma, int dmi, int dma) {
   smin = smi;
+  asmin = abs(smi);
   smax = sma;
   dmin = dmi;
+  admin = abs(dmi);
   dmax = dma;
-  map = std::vector<int>(smax-smin-1, 0);
-  inverse_map = std::vector<int>(dmax-dmin-1, 0);
-  if (dmax-dmin > smax-smin) {
-    for (int i=smin; i<=smax; ++i) {
-      if (i==0) continue;
-    
+  map = std::vector<int>(smax-smin, 0);
+  inverse_map = std::vector<int>(dmax-dmin, 0);
+  int map_pos = smin;
+  int imap_pos = dmin;
+  while (true) {
+    if (map_pos == 0) ++map_pos;
+    if (imap_pos == 0) ++imap_pos;
+    if (map_pos > smax || imap_pos > dmax) break;
+    map_at(map_pos) = imap_pos;
+    imap_at(imap_pos) = map_pos;
+  } 
 }
 
-  
+int& PDPerm::map_at(int x) {
+  if (x == 0) {
+    std::cout << "Error; cannot get map at index 0\n";
+    return map[-1];
+  }
+  return map[asmin+x-(x>0)];
+}
+
+int& PDPerm::imap_at(int x) {
+  if (x==0) {
+    std::cout << "Error; cannot get map at index 0\n";
+    return inverse_map[-1];
+  }
+  return inverse_map[admin+x-(x>0)];
+}
+
+int PDPerm::max_size() {
+  int ss = asmin + smax;
+  int sd = admin + dmax;
+  return (ss > sd ? ss : sd);
+}
+
 std::ostream& operator<<(std::ostream& os, const PDPerm& p) {
   os << "PDPerm([";
   for (int i=0; i<(int)p.map.size()-1; ++i) {
