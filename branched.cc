@@ -563,10 +563,106 @@ int BranchedSurface::num_vertices_over_vertex(int vi) {
 }
 
 /*****************************************************************************
- * optimize over all gluings
- * ***************************************************************************/
-void BranchedSurface::find_minimal_gluing() {
+ * compute chi, but only use vertices determined by the edges in edge_is_set
+ * for the other vertices, it assumes the best case, so it produces 
+ * an upper bound for the real chi
+ *****************************************************************************/
+int BranchedSurface::partially_defined_chi(const std::vector<bool>& edge_is_set) {
+  return 0;
 }
+
+
+
+/*****************************************************************************
+ * optimize over all gluings for the given coefficients
+ * this leaves the edge pdperms in the best gluing
+ * ***************************************************************************/
+int BranchedSurface::brute_minimal_gluing() {
+  //first, we should get a good guess for what the gluings
+  //should be, as this should let us trim the tree more
+  int best_chi_found = guess_minimal_gluing();
+  
+  //save the best edge pdperms
+  std::vector<PDPerm> best_gluing = edge_pdperms;
+  
+  //reset to the initial position
+  init_edge_pdperms();
+  
+  //this vector records which edges we have decided
+  std::vector<bool> edge_is_set(C->edges.size(), false);
+  
+  //the stack records which edges we have altered, in order
+  std::vector<int> stack(0);
+  
+  //initialize the stack
+  edge_is_set[1] = true;
+  stack.push_back(1);
+  int next_edge;
+  
+  while (true) {
+    //compute the potential chi
+    int chi_ub = partially_defined_chi(edge_is_set);
+    if (chi_ub < best_chi_found) goto BACKTRACK;
+    //choose the next edge
+    next_edge = 0;
+    for (int i=1; i<(int)edge_is_set.size(); ++i) {
+      if (edge_is_set[i] == false) {
+        next_edge = i;
+        break;
+      }
+    }
+    //if we can't choose the next edge, our chi calculation was a real one
+    if (next_edge == 0) {
+      if (chi_ub > best_chi_found) {
+        best_chi_found = chi_ub;
+        best_gluing = edge_pdperms;
+      }
+      goto BACKTRACK;
+    }
+    //otherwise, set it up
+    edge_pdperms[next_edge].reset(); //initialize it to the first pdperm
+    edge_is_set[next_edge] = true;   //say we set it
+    stack.push_back(next_edge);      //push it on
+    continue;
+    
+    BACKTRACK:
+    bool completely_done = false;
+    while (true) {
+      if (stack.size() == 0) {
+        completely_done = true; 
+        break;
+      }
+      int current_ei = stack.back();
+      //advance to the next pdperm
+      bool done_this_edge = edge_pdperms[current_ei].next();
+      if (done_this_edge) {
+        edge_is_set[current_ei] = false;
+        stack.pop_back();
+      } else {
+        break;
+      }
+    }
+    if (completely_done) break;
+  }
+  edge_pdperms = best_gluing;
+  return best_chi_found;
+}
+
+/*****************************************************************************
+ * Try to get a good gluing by just hillclimbing
+ *****************************************************************************/
+int BranchedSurface::hillclimb_minimal_gluing() {
+  return 0;
+}
+
+/*****************************************************************************
+ * just guess a good gluing
+ *****************************************************************************/
+int BranchedSurface::guess_minimal_gluing(int seed) {
+  
+  return 0;
+}
+
 
 /******************************************************************************
  * print out a branched surface
@@ -673,8 +769,20 @@ int main(int argc, char* argv[]) {
   std::cout << "Initialized edge perms\n";
   BS.print(std::cout);
   
-  std::cout << "Finding chi:\n";
+  std::cout << "Finding initial chi:\n";
   int chi = BS.chi();
+  std::cout << "chi = " << chi << "\n";
+  
+  std::cout << "Finding a good guess chi:\n";
+  chi = BS.guess_minimal_gluing();
+  std::cout << "chi = " << chi << "\n";
+  
+  std::cout << "Finding chi via hillclimb\n";
+  chi = BS.hillclimb_minimal_gluing();
+  std::cout << "chi = " << chi << "\n";
+  
+  std::cout << "Finding chi with brute force\n";
+  chi = BS.brute_minimal_gluing();
   std::cout << "chi = " << chi << "\n";
   
   return 0;

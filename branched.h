@@ -106,6 +106,11 @@ struct BranchedSurface {
   //compute the euler characteristic of a gluing
   int chi();
   
+  //compute a bound on a partially defined chi
+  //it'll only compute with vertices that are determined by the
+  //edges in edge_is_set
+  int partially_defined_chi(const std::vector<bool>& edge_is_set);
+  
   //technical function to follow stuff around and record things
   //if direction is 1, it means that we cross all edges going 
   //right to left in the cyclic order on the vertex 
@@ -120,7 +125,14 @@ struct BranchedSurface {
   int num_vertices_over_vertex(int vi);
   
   //this optimizes over all gluings to obtain the best possible
-  void find_minimal_gluing();
+  int brute_minimal_gluing();
+  
+  //this tries to improve the gluing locally
+  int hillclimb_minimal_gluing();
+  
+  //just try to guess a minimal gluing
+  //this function can be randomized with the seed
+  int guess_minimal_gluing(int seed=0);
   
   //print the data as text
   void print(std::ostream& os);
