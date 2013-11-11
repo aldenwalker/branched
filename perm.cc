@@ -7,71 +7,131 @@
  * partially defined permuations
  * ****************************************************************************/
 PDPerm::PDPerm() {
-  smin = smax = asmin = dmin = dmax = admin = 0;
-  map.resize(0);
-  inverse_map.resize(0);
+  map = DSList<int>();
+  inverse_map = DSList<int>();
 }
 
 PDPerm::PDPerm(int smi, int sma, int dmi, int dma) {
-  smin = smi;
-  asmin = abs(smi);
-  smax = sma;
-  dmin = dmi;
-  admin = abs(dmi);
-  dmax = dma;
-  map = std::vector<int>(smax-smin, 0);
-  inverse_map = std::vector<int>(dmax-dmin, 0);
-  int map_pos = smin;
-  int imap_pos = dmin;
+  map = DSList<int>(smi, sma, 0);
+  inverse_map = DSList<int>(dmi, dma, 0);
+  int map_pos = map.min();
+  int imap_pos = inverse_map.min();
   while (true) {
     if (map_pos == 0) ++map_pos;
     if (imap_pos == 0) ++imap_pos;
-    if (map_pos > smax || imap_pos > dmax) break;
-    map_at(map_pos) = imap_pos;
-    imap_at(imap_pos) = map_pos;
+    if (map_pos > map.max() || imap_pos > inverse_map.max()) break;
+    map[map_pos] = imap_pos;
+    inverse_map[imap_pos] = map_pos;
     ++map_pos;
     ++imap_pos;
   } 
 }
 
-int& PDPerm::map_at(int x) {
-  if (x == 0) {
-    std::cout << "Error; cannot get map at index 0\n";
-    return map[-1];
-  }
-  return map[asmin+x-(x>0)];
+int PDPerm::smin() {
+  return map.min();
 }
 
-int& PDPerm::imap_at(int x) {
-  if (x==0) {
-    std::cout << "Error; cannot get map at index 0\n";
-    return inverse_map[-1];
-  }
-  return inverse_map[admin+x-(x>0)];
+int PDPerm::smax() {
+  return map.max();
+}
+
+int PDPerm::dmin() {
+  return inverse_map.min();
+}
+
+int PDPerm::dmax() {
+  return inverse_map.max();
 }
 
 int PDPerm::max_size() {
-  int ss = asmin + smax;
-  int sd = admin + dmax;
+  int ss = map.size();
+  int sd = inverse_map.size();
   return (ss > sd ? ss : sd);
 }
 
+void PDPerm::reset() {
+  map.reset(0);
+  inverse_map.reset(0);
+  int map_pos = map.min();
+  int imap_pos = inverse_map.min();
+  while (true) {
+    if (map_pos == 0) ++map_pos;
+    if (imap_pos == 0) ++imap_pos;
+    if (map_pos > map.max() || imap_pos > inverse_map.max()) break;
+    map[map_pos] = imap_pos;
+    inverse_map[imap_pos] = map_pos;
+    ++map_pos;
+    ++imap_pos;
+  } 
+}
+
+
+//this returns true if a >=  b, except where we consider 
+//zero to be bigger than everything
+bool ge_zero_big(int a, int b) {
+  if (a==0) return true;
+  if (b==0) return false;
+  return a >= b;
+}
+
+//this does the actual next finding
+bool next_dslist(DSList<int>& L) {
+  int T = L.top();
+  int B = L.bottom();
+  //find the first time that the value decreases
+  int j = T;
+  int i = add_no_zero(T, -1);
+  while (i >= B && ge_zero_big(L[i], L[j])) {
+    j = i;
+    i = add_no_zero(i, -1);
+  }
+  if (i < B) return true;
+  //find the smallest thing forward which is bigger
+  int k = add_no_zero(j, 1);
+  while (k <= T && ge_zero_big(L[k], L[i])) {
+    j = k;
+    k = add_no_zero(k,1);
+  }
+  //at this point L[j] needs to be swapped with L[i]
+  int temp = L[i];
+  L[i] = L[j];
+  L[j] = temp;
+  //and finally, we need to reverse L[i+1] through the end
+  j = add_no_zero(i,1);
+  k=T;
+  while (j<k) {
+    temp = L[j];
+    L[j] = L[k];
+    L[k] = temp;
+    j = add_no_zero(j, 1);
+    k = add_no_zero(k,-1);
+  }
+  return false;
+}
+
+bool PDPerm::next() {
+  //we'll just use lexicographic ordering, where 0 is the largest
+  //it's easier to advance the larger list (which has zeros)
+  if (map.size() > inverse_map.size()) {
+    bool at_end = next_dslist(map);
+    if (at_end) return true;
+    for (int i=map.min(); i<=(int)map.max(); ++i) {
+      if (i == 0 || map[i] == 0) continue;
+      inverse_map[map[i]] = i;
+    }
+  } else {
+    bool at_end = next_dslist(inverse_map);
+    if (at_end) return true;
+    for (int i=inverse_map.min(); i<=(int)inverse_map.max(); ++i) {
+      if (i == 0 || inverse_map[i] == 0) continue;
+      map[inverse_map[i]] = i;
+    }
+  }
+  return false;
+}
+
 std::ostream& operator<<(std::ostream& os, const PDPerm& p) {
-  os << "PDPerm([";
-  for (int i=0; i<(int)p.map.size()-1; ++i) {
-    os << p.map[i] << ",";
-  }
-  if (p.map.size()>0) {
-    os << p.map[p.map.size()-1];
-  }
-  os << "],[";
-  for (int i=0; i<(int)p.inverse_map.size()-1; ++i) {
-    os << p.inverse_map[i] << ",";
-  }
-  if (p.inverse_map.size()>0) {
-    os << p.inverse_map[p.inverse_map.size()-1];
-  }
-  os << "])";
+  os << "PDPerm(" << p.map << "," << p.inverse_map << ")";
   return os;
 }
 

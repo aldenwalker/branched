@@ -122,7 +122,7 @@ struct BranchedSurface {
   //the only issue in computing the euler characteristic is computing the 
   //number of vertices.  this function computes how many vertices live 
   //over the given vertex
-  int num_vertices_over_vertex(int vi);
+  int num_vertices_over_vertex(int vi, bool quiet=false);
   
   //this optimizes over all gluings to obtain the best possible
   int brute_minimal_gluing();

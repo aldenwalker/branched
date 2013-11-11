@@ -474,8 +474,8 @@ void BranchedSurface::follow_gluing_around_vertex(const Vertex& vert,
   while (true) {
     if (direction > 0) {
       next_level = (global_ei > 0 
-                         ? edge_pdperms[global_ei].map_at(current_level) 
-                         : edge_pdperms[-global_ei].imap_at(current_level) );
+                         ? edge_pdperms[global_ei].map[current_level] 
+                         : edge_pdperms[-global_ei].inverse_map[current_level] );
       edges_visited[current_edge][current_level] = true;
       next_edge = (next_level > 0 ? pos_mod(current_edge+1, nedges) 
                                   : pos_mod(current_edge-1, nedges) );
@@ -486,8 +486,8 @@ void BranchedSurface::follow_gluing_around_vertex(const Vertex& vert,
       next_global_ei = vert.in_bd_of[next_edge];
       edges_visited[current_edge][current_level] = true;
       next_level = (next_global_ei > 0 
-                      ? edge_pdperms[next_global_ei].imap_at(current_level) 
-                      : edge_pdperms[-next_global_ei].map_at(current_level) );
+                      ? edge_pdperms[next_global_ei].inverse_map[current_level] 
+                      : edge_pdperms[-next_global_ei].map[current_level] );
     }
     if (next_edge == start_edge && next_level == start_level) {
       boundary = -1;
@@ -506,7 +506,7 @@ void BranchedSurface::follow_gluing_around_vertex(const Vertex& vert,
 /*****************************************************************************
  * use the gluing to determine the number of vertices over the given vertex
  * ***************************************************************************/
-int BranchedSurface::num_vertices_over_vertex(int vi) {
+int BranchedSurface::num_vertices_over_vertex(int vi, bool quiet) {
   const Vertex& vert = C->vertices[vi];
   int nedges = vert.in_bd_of.size();
   //this vector records whether we've gone over the edge
@@ -515,12 +515,12 @@ int BranchedSurface::num_vertices_over_vertex(int vi) {
   for (int i=0; i<nedges; ++i) {
     int ei = vert.in_bd_of[i];
     if (ei > 0) {
-      edges_visited[i] = DSList<bool>( edge_pdperms[ei].smin, edge_pdperms[ei].smax, false );
+      edges_visited[i] = DSList<bool>( edge_pdperms[ei].smin(), edge_pdperms[ei].smax(), false );
     } else {
-      edges_visited[i] = DSList<bool>( edge_pdperms[-ei].dmin, edge_pdperms[-ei].dmax, false);
+      edges_visited[i] = DSList<bool>( edge_pdperms[-ei].dmin(), edge_pdperms[-ei].dmax(), false);
     }
   }
-  if (verbose > 2) std::cout << "Visiting vertex " << vi << "\n";
+  if (verbose > 2 && !quiet) std::cout << "Visiting vertex " << vi << "\n";
   int num_cycles = 0; //the number of cycles (including boundary cycles)
   int twice_num_extra_vertices_needed=0; //the number of boundary cycles which don't match up (and must be glued)
   while (true) {
@@ -556,7 +556,7 @@ int BranchedSurface::num_vertices_over_vertex(int vi) {
     if (pos_dir_boundary%2 != neg_dir_boundary%2) ++twice_num_extra_vertices_needed;
     ++num_cycles;
   }
-  if (verbose > 2) std::cout << "I found " << num_cycles << " cycles and " << twice_num_extra_vertices_needed/2 << " extra vertices\n";
+  if (verbose > 2 && !quiet) std::cout << "I found " << num_cycles << " cycles and " << twice_num_extra_vertices_needed/2 << " extra vertices\n";
   if (twice_num_extra_vertices_needed%2 != 0) std::cout << "Extra vertex count weird?\n";
   
   return num_cycles - (twice_num_extra_vertices_needed/2);
@@ -568,6 +568,38 @@ int BranchedSurface::num_vertices_over_vertex(int vi) {
  * an upper bound for the real chi
  *****************************************************************************/
 int BranchedSurface::partially_defined_chi(const std::vector<bool>& edge_is_set) {
+  int ncells = 0;
+  for (int i=1; i<(int)cell_coefficients.size(); ++i) {
+    ncells += cell_coefficients[i].first + cell_coefficients[i].second;
+  }
+  if (verbose>1) std::cout << "I found there were " << ncells << " cells\n";
+  int nedges = 0;
+  for (int i=1; i<(int)C->edges.size(); ++i) {
+    nedges += edge_pdperms[i].max_size();
+  }
+  if (verbose>1) std::cout << "I found there were " << nedges << " edges\n";
+  int nverts = 0;
+  for (int i=1; i<(int)C->vertices.size(); ++i) {
+    //determine if the vertex is computable
+    const Vertex& vert = C->vertices[i];
+    bool can_compute = true;
+    int num_sheets = 0;
+    for (int j=0; j<(int)vert.in_bd_of.size(); ++j) {
+      int ei = abs(vert.in_bd_of[j]);
+      if (!edge_is_set[ei]) {
+        can_compute = false;
+      }
+      int sheets_over_edge = edge_pdperms[ei].max_size();
+      num_sheets  = (num_sheets > sheets_over_edge ? num_sheets : sheets_over_edge);
+    }
+    if (can_compute) {
+      nverts += num_vertices_over_vertex(i);
+    } else {
+      nverts += num_sheets;
+    }
+  }
+  if (verbose>1) std::cout << "I found there were " << nverts << " vertices\n";
+  return nverts - nedges + ncells;
   return 0;
 }
 
@@ -599,10 +631,14 @@ int BranchedSurface::brute_minimal_gluing() {
   stack.push_back(1);
   int next_edge;
   
+  if (verbose>1) std::cout << "Doing brute force gluing optimization\n";
+  
   while (true) {
+    if (verbose > 2) std::cout << "Current stack: " << stack << "\n";
     //compute the potential chi
     int chi_ub = partially_defined_chi(edge_is_set);
-    if (chi_ub < best_chi_found) goto BACKTRACK;
+    if (verbose>2) std::cout << "Found chi upper bound of " << chi_ub << " compared to best chi of " << best_chi_found << "\n";
+    if (chi_ub <= best_chi_found) goto BACKTRACK;
     //choose the next edge
     next_edge = 0;
     for (int i=1; i<(int)edge_is_set.size(); ++i) {
@@ -611,9 +647,11 @@ int BranchedSurface::brute_minimal_gluing() {
         break;
       }
     }
+    if (verbose > 2) std::cout << "Found next edge " << next_edge << "\n";
     //if we can't choose the next edge, our chi calculation was a real one
     if (next_edge == 0) {
       if (chi_ub > best_chi_found) {
+        if (verbose > 2) std::cout << "** new record\n";
         best_chi_found = chi_ub;
         best_gluing = edge_pdperms;
       }
@@ -626,6 +664,7 @@ int BranchedSurface::brute_minimal_gluing() {
     continue;
     
     BACKTRACK:
+    if (verbose > 2) std::cout << "Backtracking\n";
     bool completely_done = false;
     while (true) {
       if (stack.size() == 0) {
@@ -633,9 +672,11 @@ int BranchedSurface::brute_minimal_gluing() {
         break;
       }
       int current_ei = stack.back();
+      if (verbose > 2) std::cout << "Finding next perm on edge " << current_ei << "\n";
       //advance to the next pdperm
       bool done_this_edge = edge_pdperms[current_ei].next();
       if (done_this_edge) {
+        if (verbose > 2) std::cout << "Done this edge; backtracking more\n";
         edge_is_set[current_ei] = false;
         stack.pop_back();
       } else {
@@ -659,8 +700,8 @@ int BranchedSurface::hillclimb_minimal_gluing() {
  * just guess a good gluing
  *****************************************************************************/
 int BranchedSurface::guess_minimal_gluing(int seed) {
-  
-  return 0;
+  init_edge_pdperms();
+  return chi();
 }
 
 
@@ -784,6 +825,9 @@ int main(int argc, char* argv[]) {
   std::cout << "Finding chi with brute force\n";
   chi = BS.brute_minimal_gluing();
   std::cout << "chi = " << chi << "\n";
+  
+  std::cout << "Best gluing:\n";
+  BS.print(std::cout);
   
   return 0;
 

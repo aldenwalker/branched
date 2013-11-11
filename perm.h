@@ -4,6 +4,8 @@
 #include <vector>
 #include <iostream>
 
+#include "dslist.h"
+
 /******************************************************************************
  * these functions identify a range {smin, ..., -1, 1, ..., smax} with 
  * {dmin, ..., -1, 1, ..., dmax}, where all the things in the smaller 
@@ -15,21 +17,21 @@
  * the map_at and imap_at functions do this
  * ***************************************************************************/
 struct PDPerm {
-  int smin, smax, asmin;
-  int dmin, dmax, admin;
-  std::vector<int> map;
-  std::vector<int> inverse_map;
+  DSList<int> map;
+  DSList<int> inverse_map;
   
   PDPerm();
   PDPerm(int smi, int sma, int dmi, int dma);
   
-  int& map_at(int x);
-  int& imap_at(int x);
+  int smin();
+  int smax();
+  int dmin();
+  int dmax();
   
   int max_size();
   
-  //int ap(int x);
-  //int inv_ap(int x);
+  void reset(); //reset to the first pdperm
+  bool next();  //advance to the next pdperm (returns true if we're at the end)
 };
 
 std::ostream& operator<<(std::ostream& os, const PDPerm& p);

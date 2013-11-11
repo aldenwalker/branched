@@ -38,14 +38,66 @@ class DSList {
       return L[am+x-(x>0)];
     }
     
-    int min() {
+    T at(int x) const {
+      return L[am+x-(x>0)];
+    }
+    
+    int min() const{
       return m;
     }
     
-    int max() {
+    int bottom() const {
+      if (m == 0) {
+        if (M == 0) return 0;
+        return 1;
+      }
+      return m;
+    }
+    
+    int max() const {
       return M;
+    }
+    
+    int top() const {
+      if (M == 0) {
+        if (m==0) return 0;
+        return -1;
+      }
+      return M;
+    }
+      
+    
+    int size() const {
+      return M + am;
+    }
+    
+    void reset(const T& val) {
+      for (int i=0; i<(int)L.size(); ++i) {
+        L[i] = val;
+      }
     }
 };
 
+template <class T>
+std::ostream& operator<<(std::ostream& os, const DSList<T>& d) {
+  os << "[";
+  for (int i=d.min(); i<0; ++i) {
+    os << i << ":" << d.at(i);
+    if (i<-1) os << ",";
+  }
+  os << "_";
+  for (int i=1; i<=d.max(); ++i) {
+    os << i << ":" << d.at(i);
+    if (i<d.max()) os << ",";
+  }
+  os << "]";
+  return os;
+}
+
+inline int add_no_zero(int a, int b) {
+  int ans = a+b;
+  if (ans == 0) return (b>0 ? 1 : -1);
+  return ans;
+}
 
 #endif
