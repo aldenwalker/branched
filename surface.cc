@@ -367,7 +367,7 @@ void Surface::apply_relator(std::vector<int>& w, int pos, int len, bool inv) {
   if (pos + len > wL) {
     w = cyclic_subword(w, (pos+len)%wL, wL-len);
     w.insert(w.end(), new_relator_chunk.begin(), new_relator_chunk.end());
-    w = cyclic_subword(w, wL-pos, w.size());
+    //w = cyclic_subword(w, wL-pos, w.size());
   } else {
     w.erase(w.begin()+pos, w.begin()+pos+len);
     w.insert(w.begin()+pos, new_relator_chunk.begin(), new_relator_chunk.end());
@@ -1339,8 +1339,8 @@ void LoopArrangement::show(Cellulation* C) {
   }
   
   //print out the key
-  Point2d<float> box_pos(-0.90, -1);
-  Point2d<float> word_pos(-0.88, -1);
+  Point2d<float> box_pos(-0.90, -0.9);
+  Point2d<float> word_pos(-0.88, -0.9);
   Point2d<float> step(0, -0.03);
   for (int i=0; i<(int)W.size(); ++i) {
     X.draw_box_radius(box_pos, 0.01, word_colors[i]);

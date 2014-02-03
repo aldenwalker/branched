@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-Wall -g
+CFLAGS=-O3 #-Wall -g
 GFLAGS=-I/usr/X11R6/include
 IFLAGS=-I/sw/include
 LFLAGS=-L/usr/X11R6/lib -lX11 -L/sw/lib -lgmp

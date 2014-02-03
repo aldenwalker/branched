@@ -149,6 +149,7 @@ std::vector<SignedInd> Cellulation::follow_edge(SignedInd e) {
  ****************************************************************************/
 void Cellulation::draw_to_xgraphics(XGraphics& X) {
 
+  bool label_edge_arrows = false;
   bool gray_from_winding = false;
   int wn_max = 0;
   if (cells[1].computed_winding_number) {
@@ -207,14 +208,14 @@ void Cellulation::draw_to_xgraphics(XGraphics& X) {
     temp2 = Point2d<float>(edges[i].end_pos.x.get_d(), edges[i].end_pos.y.get_d());
     std::stringstream edge_label_s;
     edge_label_s << i;
-    std::string edge_label = edge_label_s.str();
+    std::string edge_label = (label_edge_arrows ? edge_label_s.str() : "");
     //X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, std::string(""));//edge_label);
-    X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, edge_label);
+    //X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, edge_label);
     if (edges[i].two_sided) {
       temp1 = Point2d<float>(edges[i].start_neg.x.get_d(), edges[i].start_neg.y.get_d());
       temp2 = Point2d<float>(edges[i].end_neg.x.get_d(), edges[i].end_neg.y.get_d());
       //X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, std::string(""));//edge_label);
-      X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, edge_label);
+      //X.draw_arrowed_labeled_line(temp1, temp2, black_color, 1, edge_label);
     }
   }
 
@@ -743,8 +744,12 @@ int main(int argc, char* argv[]) {
   int current_arg = 1;
   int verbose=1;
   bool demo=false;
+  bool winding_numbers=false;
   if (argc < 2 || (argc < 4 && argv[1][1] != 'd')) {
-    std::cout << "usage: ./branched -v[n] <genus> <nbounaries> <loops>\n";
+    std::cout << "usage: ./branched -v[n] [-w] [-d] <genus> <nbounaries> <loops>\n";
+    std::cout << "\t-v[n]: verbose (of level n; default=2)\n";
+    std::cout << "\t   -w: show complementary regions and winding numbers\n"; 
+    std::cout << "\t   -d: demo (genus 3 example)\n";
     return 0;
   }
   while (current_arg < argc && argv[current_arg][0] == '-') {
@@ -755,6 +760,9 @@ int main(int argc, char* argv[]) {
         } else {
           verbose = atoi(&argv[current_arg][2]);
         }
+        break;
+      case 'w':
+        winding_numbers=true;
         break;
       case 'd':
         demo = true;
@@ -777,17 +785,25 @@ int main(int argc, char* argv[]) {
     }
   }
   Surface S(genus, nboundaries, verbose);
-  S.print(std::cout);
+  if (verbose>1) {
+    S.print(std::cout);
+  }
   LoopArrangement LA(S, words, verbose);
-  std::cout << "After just initializing, " << LA.count_crossings() << " crossings:\n";
-  LA.print(std::cout);
-  LA.show();
+  if (verbose>1) {
+    std::cout << "After just initializing, " << LA.count_crossings() << " crossings:\n";
+    LA.print(std::cout);
+    LA.show();
+  }
 
   LA.minimal_position();
   LA.find_crossing_data();
-  std::cout << "After minimizing, " << LA.count_crossings() << " crossings:\n";
-  LA.print(std::cout);
+  std::cout << "Minimal position has " << LA.count_crossings() << " crossings.\n";
+  if (verbose>1) {
+    LA.print(std::cout);
+  }
   LA.show();
+  
+  if (!winding_numbers) return 0;
   
   Cellulation C = LA.cellulation_from_loops();
   C.verbose = verbose;
@@ -795,8 +811,13 @@ int main(int argc, char* argv[]) {
   //compute the winding numbers
   C.compute_winding_numbers(LA);
   
-  std::cout << "Cellulation from loops:\n";
-  C.print(std::cout);
+  std::cout << "Displaying complementary regions and winding numbers.\n";
+  if (verbose>1) { 
+    C.print(std::cout);
+  }
+  LA.show(&C);
+  
+  return 0;
   
   int chi_ub = C.chi_upper_bound(LA);
   Rational scl_lb(-chi_ub, 2);
