@@ -752,6 +752,16 @@ int main(int argc, char* argv[]) {
     std::cout << "\t   -d: demo (genus 3 example)\n";
     return 0;
   }
+  /*
+  Point2d<float> translate(410,480);
+  XGraphics X(820, 890, (float)400, translate);
+  int black_color = X.get_color("black");
+  X.draw_arrowed_labeled_line(Point2d<float>(-1, -1), Point2d<float>(1,1), black_color, 2, std::string(""));
+  X.flush();
+  X.wait_for_key();
+  return 0;
+  */
+  
   while (current_arg < argc && argv[current_arg][0] == '-') {
     switch(argv[current_arg][1]) {
       case 'v':

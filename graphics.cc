@@ -53,13 +53,22 @@ XGraphics::XGraphics(int w, int h, float s, Point2d<float>& t) {
   XSelectInput(display, win, ExposureMask | 
                              KeyPressMask | 
                              ButtonPressMask | 
-                             PointerMotionMask |
-                             StructureNotifyMask);
-  gc = DefaultGC(display, screen_num);
+                             PointerMotionMask);
+  XMapWindow(display, win);                     
+  while (true) {  //wait until the window is actually mapped
+    XEvent e;
+    XNextEvent(display, &e);
+    if (e.type == Expose) break;
+  }
+  
+  gc = XCreateGC(display, RootWindow(display, screen_num), 0, NULL);
+  pmap = XCreatePixmap(display, win,
+                    width, height, DefaultDepth(display, screen_num));
   screen_colormap = DefaultColormap(display, screen_num);
+  XSetForeground(display, gc, WhitePixel(display, screen_num));
+  XFillRectangle(display, pmap, gc, 0, 0, width, height);
   XSetForeground(display, gc, BlackPixel(display, screen_num));
   XSetBackground(display, gc, WhitePixel(display, screen_num));
-  XMapWindow(display, win);
   color_list.clear();
   
   line_thickness = 1;
@@ -67,11 +76,6 @@ XGraphics::XGraphics(int w, int h, float s, Point2d<float>& t) {
   scale = s;
   translate = t;
   
-  while (true) {  //wait until the window is actually mapped
-    XEvent e;
-    XNextEvent(display, &e);
-    if (e.type == Expose) break;
-  }
   setup_font();
 }
 
@@ -117,7 +121,9 @@ int XGraphics::get_rgb_color(double r, double g, double b) {
 
 
 void XGraphics::flush() {
-  XFlush(display);
+  XCopyArea(display, pmap, win, gc, 0, 0, width, height, 0, 0);
+  //std::cout << "Copied pmap\n";
+  //XFlush(display);
 }
 
 void XGraphics::list_fonts() {
@@ -190,19 +196,19 @@ Point2d<int> XGraphics::mouse_location(){
 
 void XGraphics::draw_point(const Point2d<int>& p, long col){
   XSetForeground(display, gc, col);
-  XDrawPoint(display, win, gc, p.x, height-p.y);
+  XDrawPoint(display, pmap, gc, p.x, height-p.y);
 }
 
 void XGraphics::draw_point(const Point2d<float>& p, long col){
   XSetForeground(display, gc, col);
   Point2d<int> real_p(scale*p.x + translate.x, scale*p.y +translate.y);
-  XDrawPoint(display, win, gc, real_p.x, height-real_p.y);
+  XDrawPoint(display, pmap, gc, real_p.x, height-real_p.y);
 }
 
 void XGraphics::draw_line(const Point2d<int>& p1, const Point2d<int>& p2, long col) {
   XSetForeground(display, gc, col);
   XSetLineAttributes(display, gc, 1.5, LineSolid, 1, 1);
-  XDrawLine(display, win, gc, p1.x, height-p1.y, p2.x, height-p2.y);
+  XDrawLine(display, pmap, gc, p1.x, height-p1.y, p2.x, height-p2.y);
 }
 
 void XGraphics::draw_line(const Point2d<float>& p1, const Point2d<float>& p2, long col) {
@@ -210,7 +216,7 @@ void XGraphics::draw_line(const Point2d<float>& p1, const Point2d<float>& p2, lo
   XSetLineAttributes(display, gc, line_thickness, LineSolid, 1, 1);
   Point2d<int> p1_real((int)(p1.x*scale + translate.x), (int)(p1.y*scale + translate.y));
   Point2d<int> p2_real((int)(p2.x*scale + translate.x), (int)(p2.y*scale + translate.y));
-  XDrawLine(display, win, gc, p1_real.x, height-p1_real.y, p2_real.x, height-p2_real.y);
+  XDrawLine(display, pmap, gc, p1_real.x, height-p1_real.y, p2_real.x, height-p2_real.y);
 }
 
 
@@ -219,8 +225,9 @@ void XGraphics::draw_line(const Point2d<float>& p1, const Point2d<float>& p2, lo
   XSetLineAttributes(display, gc, thickness, LineSolid, CapButt, JoinMiter);
   Point2d<int> p1_real((int)(p1.x*scale + translate.x), (int)(p1.y*scale + translate.y));
   Point2d<int> p2_real((int)(p2.x*scale + translate.x), (int)(p2.y*scale + translate.y));
-  XDrawLine(display, win, gc, p1_real.x, height-p1_real.y, p2_real.x, height-p2_real.y);
+  XDrawLine(display, pmap, gc, p1_real.x, height-p1_real.y, p2_real.x, height-p2_real.y);
   XSetLineAttributes(display, gc, line_thickness, LineSolid, CapButt, JoinMiter);
+  //std::cout << "Drew line from " << p1_real << " to " << p2_real << "\n";
 }
   
 void XGraphics::draw_arrowed_labeled_line(const Point2d<float>& p1, 
@@ -233,8 +240,9 @@ void XGraphics::draw_arrowed_labeled_line(const Point2d<float>& p1,
   XSetLineAttributes(display, gc, thickness, LineSolid, CapButt, JoinMiter);
   Point2d<int> p1_real((int)(p1.x*scale + translate.x), (int)(p1.y*scale + translate.y));
   Point2d<int> p2_real((int)(p2.x*scale + translate.x), (int)(p2.y*scale + translate.y));
-  XDrawLine(display, win, gc, p1_real.x, height-p1_real.y, p2_real.x, height-p2_real.y);
+  XDrawLine(display, pmap, gc, p1_real.x, height-p1_real.y, p2_real.x, height-p2_real.y);
   XSetLineAttributes(display, gc, line_thickness, LineSolid, CapButt, JoinMiter);
+  //std::cout << "Drew line from " << p1_real << " to " << p2_real << "\n";
   
   //draw the arrow
   Point2d<float> diff = p2-p1;
@@ -292,7 +300,7 @@ void XGraphics::draw_rectangle(int x, int y, int zx, int zy, long col) {
 
 void XGraphics::draw_filled_rectangle(int x, int y, int zx, int zy, long col) {
   XSetForeground(display, gc, col);
-  XFillRectangle(display, win, gc, x, height-(y+zy), zx, zy);
+  XFillRectangle(display, pmap, gc, x, height-(y+zy), zx, zy);
 }
 
 void XGraphics::draw_box_radius(Point2d<float>& center, float radius, long col) {
@@ -300,7 +308,7 @@ void XGraphics::draw_box_radius(Point2d<float>& center, float radius, long col) 
                                        (int)((center.y-radius)*scale + translate.y));
   int z = (int)(2*radius*scale);
   XSetForeground(display, gc, col);
-  XFillRectangle(display, win, gc, LL_real.x, height-(LL_real.y+z), z, z);
+  XFillRectangle(display, pmap, gc, LL_real.x, height-(LL_real.y+z), z, z);
   draw_point(center, col);
 }
 
@@ -312,7 +320,7 @@ void XGraphics::draw_filled_polygon(const std::vector<Point2d<float> >& points, 
     real_points[i].y = height - (int)(points[i].y*scale + translate.y);
   }
   XSetForeground(display, gc, col);
-  XFillPolygon(display, win, gc, &real_points[0], points.size(), Convex, CoordModeOrigin);
+  XFillPolygon(display, pmap, gc, &real_points[0], points.size(), Convex, CoordModeOrigin);
 }
 
 
@@ -321,21 +329,21 @@ void XGraphics::draw_faint_line(const Point2d<int>& p1,
                                 long col){
   XSetForeground(display, gc, (long) 0xDDDDDD);
 	XSetLineAttributes(display, gc, 1, LineOnOffDash, 1, 1);
-  XDrawLine(display, win, gc, p1.x, p1.y, p2.x, p2.y);
+  XDrawLine(display, pmap, gc, p1.x, p1.y, p2.x, p2.y);
 }
 
 void XGraphics::erase_circle(const Point2d<int>& p, int r){
 	XSetForeground(display, gc, 0xFFFFFF);
   XSetLineAttributes(display, gc, 1, LineOnOffDash, 1, 1);
 	XSetFillStyle(display, gc, FillSolid);
-  XFillArc(display, win, gc, p.x-r, p.y-r, 2*r, 2*r, 0, 23040);
+  XFillArc(display, pmap, gc, p.x-r, p.y-r, 2*r, 2*r, 0, 23040);
 }
 
 void XGraphics::draw_circle(const Point2d<int>& p, int r, long col){
     XSetForeground(display, gc, col);
     XSetLineAttributes(display, gc, 1, LineSolid, 1, 1);
     XSetFillStyle(display, gc, FillSolid); 
-    XDrawArc(display, win, gc, (p.x-r), (height-p.y)-r, 2*r, 2*r, 0, 23040);
+    XDrawArc(display, pmap, gc, (p.x-r), (height-p.y)-r, 2*r, 2*r, 0, 23040);
 }
 
 void XGraphics::draw_circle(const Point2d<float>& p, int r, long col){
@@ -343,7 +351,7 @@ void XGraphics::draw_circle(const Point2d<float>& p, int r, long col){
     XSetLineAttributes(display, gc, line_thickness, LineSolid, 1, 1);
     XSetFillStyle(display, gc, FillSolid); 
     Point2d<int> real_p((int)(p.x*scale + translate.x), (int)(p.y*scale + translate.y));
-    XDrawArc(display, win, gc, (real_p.x-r), (height-(real_p.y+r)), 2*r, 2*r, 0, 23040);
+    XDrawArc(display, pmap, gc, (real_p.x-r), (height-(real_p.y+r)), 2*r, 2*r, 0, 23040);
 }
 
 
@@ -353,7 +361,7 @@ void XGraphics::draw_concentric_circles(const Point2d<int>& p, int r, long col){
     XSetForeground(display, gc, col*s);
     XSetLineAttributes(display, gc, 1, LineSolid, 1, 1);
     XSetFillStyle(display, gc, FillSolid);
-    XDrawArc(display, win, gc, p.x-r*s+1, p.y-r*s+1, 2*r*s-2, 2*r*s-2, 0, 23040);
+    XDrawArc(display, pmap, gc, p.x-r*s+1, p.y-r*s+1, 2*r*s-2, 2*r*s-2, 0, 23040);
   }
 }
 
@@ -368,12 +376,12 @@ void XGraphics::draw_text(const Point2d<int>& p, std::stringstream &T, long col)
   std::string S;
   XSetForeground(display, gc, col);
   S=T.str();
-  XDrawString(display,win,gc,p.x,height-p.y,S.c_str(),strlen(S.c_str()));
+  XDrawString(display,pmap,gc,p.x,height-p.y,S.c_str(),strlen(S.c_str()));
 }
 
 void XGraphics::draw_text(const Point2d<int>& p, std::string &S, long col){
   XSetForeground(display, gc, col);
-  XDrawString(display,win,gc,p.x,height-p.y,S.c_str(),strlen(S.c_str()));
+  XDrawString(display,pmap,gc,p.x,height-p.y,S.c_str(),strlen(S.c_str()));
 }
 
 void XGraphics::draw_text(const Point2d<float>& p, std::string &S, long col) {
@@ -381,14 +389,14 @@ void XGraphics::draw_text(const Point2d<float>& p, std::string &S, long col) {
   Point2d<int> real_p = Point2d<int>((int)(p.x*scale + translate.x), 
                                      (int)(p.y*scale + translate.y));
   Point2d<int> offset = text_offset_left(S);
-  XDrawString(display, win, gc, real_p.x+offset.x, height-(real_p.y+offset.y), S.c_str(), S.size());
+  XDrawString(display, pmap, gc, real_p.x+offset.x, height-(real_p.y+offset.y), S.c_str(), S.size());
 }
   
 void XGraphics::draw_text_centered(const Point2d<float>& p, const std::string &S, long col) {
   XSetForeground(display, gc, col);
   Point2d<int> real_p( (int)(p.x*scale + translate.x), (int)(p.y*scale + translate.y) );
   Point2d<int> offset = text_offset_center(S);
-  XDrawString(display, win, gc, real_p.x+offset.x, height-(real_p.y+offset.y), S.c_str(), S.size()); 
+  XDrawString(display, pmap, gc, real_p.x+offset.x, height-(real_p.y+offset.y), S.c_str(), S.size()); 
   //draw_point(p, col);
 }
   
@@ -407,6 +415,10 @@ std::string XGraphics::wait_for_key() {
   bool finished=false;
   while(finished==false){ 
     XNextEvent(display, &report);
+    if (report.type == Expose) {
+      flush();
+      continue;
+    }
     if (report.type != KeyPress) continue; //ignore the mouse
     if(XLookupKeysym(&report.xkey, 0) == XK_Left){ // left arrow
       return "LA";

@@ -42,6 +42,7 @@ private:
   unsigned int display_width, display_height;
   XEvent report;
   GC gc;
+  Pixmap pmap;
   Window win;
   int border_width;
   unsigned int width, height;

@@ -6,7 +6,7 @@ LFLAGS=-L/usr/X11R6/lib -lX11 -L/sw/lib -lgmp
 
 all: branched
 
-branched.o : branched.cc
+branched.o : branched.cc graphics.cc
 	$(CC) $(CFLAGS) $(IFLAGS) -c branched.cc
 
 surface.o : surface.cc
